@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -21,6 +22,7 @@ import { ReservationsModule } from './modules/reservations/reservations.module.j
       database: process.env.DB_NAME,
       synchronize: false,
       autoLoadEntities: true,
+      migrations: [join(import.meta.dirname, 'database', 'migrations', '*.js')],
       logging: process.env.DB_LOGGING === 'true',
       logger: 'advanced-console',
     }),
