@@ -18,7 +18,10 @@ async function bootstrap() {
   });
 
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
   );
 
   if (process.env.SWAGGER_HABILITADO === 'true') {
@@ -32,4 +35,5 @@ async function bootstrap() {
   }
   await app.listen(process.env.PORT ?? 3000);
 }
+
 await bootstrap();
