@@ -18,10 +18,10 @@ export class AuthService {
 
   async login(loginDto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.usersRepository.findOne({
-      where: { email: loginDto.email, estado: UserState.ACTIVO },
+      where: { documento: loginDto.documento, estado: UserState.ACTIVO },
     });
     if (!user || !(await bcrypt.compare(loginDto.clave, user.clave))) {
-      throw new UnauthorizedException('Correo electrónico o clave inválidos.');
+      throw new UnauthorizedException('Documento o clave inválidos.');
     }
 
     const payload = { sub: user.id, role: user.rol };
