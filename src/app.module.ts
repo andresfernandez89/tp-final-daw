@@ -1,12 +1,12 @@
-import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { join } from 'node:path';
 import { AuthModule } from './modules/auth/auth.module.js';
-import { UsersModule } from './modules/users/users.module.js';
 import { DoctorsModule } from './modules/doctors/doctors.module.js';
 import { PatientsModule } from './modules/patients/patients.module.js';
 import { ReservationsModule } from './modules/reservations/reservations.module.js';
+import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
   imports: [
