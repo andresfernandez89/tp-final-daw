@@ -6,6 +6,9 @@
 # TypeScript build cache
 *.tsbuildinfo
 
+# Codegraph local index
+.codegraph/
+
 # Logs
 logs
 *.log
