@@ -11,6 +11,7 @@ const seedUsers = [
     apellidos: 'Administrador',
     nombres: 'Uno',
     email: 'admin1@example.com',
+    estado: 'ACTIVO',
     rol: 'ADMINISTRADOR',
   },
   {
@@ -18,6 +19,7 @@ const seedUsers = [
     apellidos: 'Administrador',
     nombres: 'Dos',
     email: 'admin2@example.com',
+    estado: 'ACTIVO',
     rol: 'ADMINISTRADOR',
   },
   {
@@ -25,6 +27,15 @@ const seedUsers = [
     apellidos: 'Administrador',
     nombres: 'Tres',
     email: 'admin3@example.com',
+    estado: 'ACTIVO',
+    rol: 'ADMINISTRADOR',
+  },
+  {
+    documento: '10000004',
+    apellidos: 'Administrador',
+    nombres: 'Baja',
+    email: 'admin.baja@example.com',
+    estado: 'BAJA',
     rol: 'ADMINISTRADOR',
   },
   {
@@ -32,6 +43,7 @@ const seedUsers = [
     apellidos: 'Medico',
     nombres: 'Uno',
     email: 'medico1@example.com',
+    estado: 'ACTIVO',
     rol: 'MEDICO',
   },
   {
@@ -39,6 +51,7 @@ const seedUsers = [
     apellidos: 'Medico',
     nombres: 'Dos',
     email: 'medico2@example.com',
+    estado: 'ACTIVO',
     rol: 'MEDICO',
   },
   {
@@ -46,6 +59,15 @@ const seedUsers = [
     apellidos: 'Medico',
     nombres: 'Tres',
     email: 'medico3@example.com',
+    estado: 'ACTIVO',
+    rol: 'MEDICO',
+  },
+  {
+    documento: '20000004',
+    apellidos: 'Medico',
+    nombres: 'Baja',
+    email: 'medico.baja@example.com',
+    estado: 'BAJA',
     rol: 'MEDICO',
   },
   {
@@ -53,6 +75,7 @@ const seedUsers = [
     apellidos: 'Paciente',
     nombres: 'Uno',
     email: 'paciente1@example.com',
+    estado: 'ACTIVO',
     rol: 'PACIENTE',
   },
   {
@@ -60,6 +83,7 @@ const seedUsers = [
     apellidos: 'Paciente',
     nombres: 'Dos',
     email: 'paciente2@example.com',
+    estado: 'ACTIVO',
     rol: 'PACIENTE',
   },
   {
@@ -67,6 +91,7 @@ const seedUsers = [
     apellidos: 'Paciente',
     nombres: 'Tres',
     email: 'paciente3@example.com',
+    estado: 'ACTIVO',
     rol: 'PACIENTE',
   },
   {
@@ -74,7 +99,39 @@ const seedUsers = [
     apellidos: 'Paciente',
     nombres: 'Cuatro',
     email: 'paciente4@example.com',
+    estado: 'ACTIVO',
     rol: 'PACIENTE',
+  },
+  {
+    documento: '30000005',
+    apellidos: 'Paciente',
+    nombres: 'Baja',
+    email: 'paciente.baja@example.com',
+    estado: 'BAJA',
+    rol: 'PACIENTE',
+  },
+] as const;
+
+const seedDoctors = [
+  {
+    documento: '20000001',
+    matricula: 10001,
+    valorConsulta: 15000,
+  },
+  {
+    documento: '20000002',
+    matricula: 10002,
+    valorConsulta: 18000,
+  },
+  {
+    documento: '20000003',
+    matricula: 10003,
+    valorConsulta: 20000,
+  },
+  {
+    documento: '20000004',
+    matricula: 10004,
+    valorConsulta: 15000,
   },
 ] as const;
 
@@ -83,6 +140,12 @@ type SeedCounts = {
   administradores: number;
   medicos: number;
   pacientes: number;
+  bajas: number;
+  administradores_baja: number;
+  medicos_baja: number;
+  pacientes_baja: number;
+  registros_medicos: number;
+  medicos_vinculados: number;
 };
 
 async function runInitialSeed(): Promise<void> {
@@ -130,9 +193,19 @@ async function runInitialSeed(): Promise<void> {
           user.nombres,
           user.email,
           user.clave,
-          'ACTIVO',
+          user.estado,
           user.rol,
         ],
+      );
+    }
+
+    for (const doctor of seedDoctors) {
+      await queryRunner.query(
+        `INSERT INTO medicos (id_usuario, matricula, valor_consulta)
+         SELECT id, $2, $3
+         FROM usuarios
+         WHERE documento = $1 AND rol = 'MEDICO'`,
+        [doctor.documento, doctor.matricula, doctor.valorConsulta],
       );
     }
 
@@ -141,17 +214,32 @@ async function runInitialSeed(): Promise<void> {
          COUNT(*)::integer AS total,
          COUNT(*) FILTER (WHERE rol = 'ADMINISTRADOR')::integer AS administradores,
          COUNT(*) FILTER (WHERE rol = 'MEDICO')::integer AS medicos,
-         COUNT(*) FILTER (WHERE rol = 'PACIENTE')::integer AS pacientes
+         COUNT(*) FILTER (WHERE rol = 'PACIENTE')::integer AS pacientes,
+         COUNT(*) FILTER (WHERE estado = 'BAJA')::integer AS bajas,
+         COUNT(*) FILTER (WHERE rol = 'ADMINISTRADOR' AND estado = 'BAJA')::integer AS administradores_baja,
+         COUNT(*) FILTER (WHERE rol = 'MEDICO' AND estado = 'BAJA')::integer AS medicos_baja,
+         COUNT(*) FILTER (WHERE rol = 'PACIENTE' AND estado = 'BAJA')::integer AS pacientes_baja,
+         (SELECT COUNT(*)::integer FROM medicos) AS registros_medicos,
+         (SELECT COUNT(DISTINCT m.id_usuario)::integer
+          FROM medicos m
+          INNER JOIN usuarios u ON u.id = m.id_usuario
+          WHERE u.rol = 'MEDICO') AS medicos_vinculados
        FROM usuarios`,
     );
 
     if (
-      counts?.total !== 10 ||
-      counts.administradores !== 3 ||
-      counts.medicos !== 3 ||
-      counts.pacientes !== 4
+      counts?.total !== 13 ||
+      counts.administradores !== 4 ||
+      counts.medicos !== 4 ||
+      counts.pacientes !== 5 ||
+      counts.bajas !== 3 ||
+      counts.administradores_baja !== 1 ||
+      counts.medicos_baja !== 1 ||
+      counts.pacientes_baja !== 1 ||
+      counts.registros_medicos !== 4 ||
+      counts.medicos_vinculados !== 4
     ) {
-      throw new Error('Hay una cantidad de users invalida en esta seed.');
+      throw new Error('Hay una cantidad de registros invalida en esta seed.');
     }
 
     await queryRunner.commitTransaction();
