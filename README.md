@@ -57,6 +57,8 @@ SWAGGER_HABILITADO=true
 
 Reiniciar el servidor después de modificar el archivo de entorno.
 
-- API: `http://localhost:9191/api/v1`.
-- Swagger UI: `http://localhost:9191/api`.
-- OpenAPI JSON: `http://localhost:9191/api-json`.
+En las siguientes URLs, reemplazar `{PORT}` por el valor de `PORT` configurado en `backend/.env`, o por `3000` si no se define.
+
+- API: `http://localhost:{PORT}/api/v1`.
+- Swagger UI: `http://localhost:{PORT}/api`.
+- OpenAPI JSON: `http://localhost:{PORT}/api-json`.
