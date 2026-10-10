@@ -30,8 +30,8 @@ async function bootstrap() {
       .setDescription('Descripción de la API del sistema de la clínica médica')
       .addBearerAuth()
       .build();
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup(globalPrefix, app, document);
+    const documentFactory = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup(globalPrefix, app, documentFactory);
   }
   await app.listen(process.env.PORT ?? 3000);
 }

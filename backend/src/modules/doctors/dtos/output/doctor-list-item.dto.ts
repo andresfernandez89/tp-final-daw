@@ -2,23 +2,23 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsInt, IsString } from 'class-validator';
 
 export class DoctorListItemDto {
-  @ApiProperty({ example: 3 })
+  @ApiProperty()
   @IsInt()
   id: number;
 
-  @ApiProperty({ example: 'Ana' })
+  @ApiProperty()
   @IsString()
   nombres: string;
 
-  @ApiProperty({ example: 'Diaz' })
+  @ApiProperty()
   @IsString()
   apellidos: string;
 
-  @ApiProperty({ example: 123 })
+  @ApiProperty()
   @IsInt()
   matricula: number;
 
-  @ApiProperty({ example: 15000 })
+  @ApiProperty()
   @IsInt()
   valor_consulta: number;
 }
