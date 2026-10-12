@@ -135,6 +135,65 @@ const seedDoctors = [
   },
 ] as const;
 
+const seedReservations = [
+  {
+    documentoMedico: '20000001',
+    documentoPaciente: '30000001',
+    diasDesdeHoy: 1,
+    hora: '09:00',
+    estado: 'ACTIVO',
+  },
+  {
+    documentoMedico: '20000002',
+    documentoPaciente: '30000002',
+    diasDesdeHoy: 2,
+    hora: '10:00',
+    estado: 'ACTIVO',
+  },
+  {
+    documentoMedico: '20000001',
+    documentoPaciente: '30000003',
+    diasDesdeHoy: -7,
+    hora: '09:00',
+    estado: 'ATENDIDO',
+  },
+  {
+    documentoMedico: '20000003',
+    documentoPaciente: '30000004',
+    diasDesdeHoy: -6,
+    hora: '11:00',
+    estado: 'ATENDIDO',
+  },
+  {
+    documentoMedico: '20000002',
+    documentoPaciente: '30000001',
+    diasDesdeHoy: -3,
+    hora: '10:00',
+    estado: 'AUSENTE',
+  },
+  {
+    documentoMedico: '20000003',
+    documentoPaciente: '30000002',
+    diasDesdeHoy: -2,
+    hora: '11:00',
+    estado: 'AUSENTE',
+  },
+  {
+    documentoMedico: '20000001',
+    documentoPaciente: '30000004',
+    diasDesdeHoy: 3,
+    hora: '09:00',
+    estado: 'CANCELADO',
+  },
+  {
+    documentoMedico: '20000003',
+    documentoPaciente: '30000003',
+    diasDesdeHoy: 4,
+    hora: '11:00',
+    estado: 'CANCELADO',
+  },
+] as const;
+
 type SeedCounts = {
   total: number;
   administradores: number;
@@ -146,6 +205,15 @@ type SeedCounts = {
   pacientes_baja: number;
   registros_medicos: number;
   medicos_vinculados: number;
+};
+
+type ReservationSeedCounts = {
+  total: number;
+  activas: number;
+  atendidas: number;
+  ausentes: number;
+  canceladas: number;
+  reservas_vinculadas: number;
 };
 
 async function runInitialSeed(): Promise<void> {
@@ -209,6 +277,27 @@ async function runInitialSeed(): Promise<void> {
       );
     }
 
+    for (const reservation of seedReservations) {
+      await queryRunner.query(
+        `INSERT INTO reservas
+          (id_medico, id_paciente, fecha_hora, estado, valor_consulta)
+         SELECT m.id, p.id, CURRENT_DATE + $3::integer + $4::time,
+                $5::estados_reservas, m.valor_consulta
+         FROM medicos m
+         INNER JOIN usuarios u ON u.id = m.id_usuario
+         INNER JOIN usuarios p ON p.documento = $2
+         WHERE u.documento = $1 AND u.rol = 'MEDICO' AND u.estado = 'ACTIVO'
+           AND p.rol = 'PACIENTE' AND p.estado = 'ACTIVO'`,
+        [
+          reservation.documentoMedico,
+          reservation.documentoPaciente,
+          reservation.diasDesdeHoy,
+          reservation.hora,
+          reservation.estado,
+        ],
+      );
+    }
+
     const [counts] = await queryRunner.manager.query<SeedCounts[]>(
       `SELECT
          COUNT(*)::integer AS total,
@@ -240,6 +329,39 @@ async function runInitialSeed(): Promise<void> {
       counts.medicos_vinculados !== 4
     ) {
       throw new Error('Hay una cantidad de registros invalida en esta seed.');
+    }
+
+    const [reservationCounts] = await queryRunner.manager.query<
+      ReservationSeedCounts[]
+    >(
+      `SELECT
+         COUNT(*)::integer AS total,
+         COUNT(*) FILTER (WHERE estado = 'ACTIVO')::integer AS activas,
+         COUNT(*) FILTER (WHERE estado = 'ATENDIDO')::integer AS atendidas,
+         COUNT(*) FILTER (WHERE estado = 'AUSENTE')::integer AS ausentes,
+         COUNT(*) FILTER (WHERE estado = 'CANCELADO')::integer AS canceladas,
+         (SELECT COUNT(*)::integer
+          FROM reservas r
+          INNER JOIN medicos m ON m.id = r.id_medico
+          INNER JOIN usuarios u ON u.id = m.id_usuario
+          INNER JOIN usuarios p ON p.id = r.id_paciente
+          WHERE u.rol = 'MEDICO' AND u.estado = 'ACTIVO'
+            AND p.rol = 'PACIENTE' AND p.estado = 'ACTIVO'
+            AND r.valor_consulta = m.valor_consulta) AS reservas_vinculadas
+       FROM reservas`,
+    );
+
+    if (
+      reservationCounts?.total !== seedReservations.length ||
+      reservationCounts.activas !== 2 ||
+      reservationCounts.atendidas !== 2 ||
+      reservationCounts.ausentes !== 2 ||
+      reservationCounts.canceladas !== 2 ||
+      reservationCounts.reservas_vinculadas !== seedReservations.length
+    ) {
+      throw new Error(
+        'Las reservas de la seed tienen cantidades o vínculos inválidos.',
+      );
     }
 
     await queryRunner.commitTransaction();
