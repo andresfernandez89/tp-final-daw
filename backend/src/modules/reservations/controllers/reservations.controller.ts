@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Query,
   Req,
   UnauthorizedException,
   UseGuards,
@@ -19,6 +20,7 @@ import { Roles } from '../../auth/decorators/roles.decorator.js';
 import { UserRole } from '../../auth/enums/user-role.enum.js';
 import { AuthGuard } from '../../auth/guards/auth.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
+import { FindReservationsQueryDto } from '../dtos/input/find-reservations-query.dto.js';
 import { OutputReservationDto } from '../dtos/output/reservation.dto.js';
 import { ReservationsService } from '../services/reservations.service.js';
 
@@ -93,5 +95,14 @@ export class ReservationsController {
     }
 
     return this.reservationsService.findByPatient(patientId);
+  }
+
+  @Get('admin')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMINISTRADOR)
+  findAll(
+    @Query() query: FindReservationsQueryDto,
+  ): Promise<OutputReservationDto[]> {
+    return this.reservationsService.findAll(query);
   }
 }
