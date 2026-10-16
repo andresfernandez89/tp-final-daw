@@ -11,7 +11,10 @@ import { ReservationState } from '../../enums/reservation-state.enum.js';
 export class FindReservationsQueryDto {
   @ApiPropertyOptional({
     enum: ReservationState,
-    description: 'Estado exacto por el que se filtran las reservas.',
+    description:
+      'Estado exacto por el que se filtran las reservas. Valores permitidos: ' +
+      'ACTIVO, ATENDIDO, AUSENTE o CANCELADO. Si se omite, se listan las reservas ' +
+      'de todos los estados.',
     example: ReservationState.ACTIVO,
   })
   @IsOptional()

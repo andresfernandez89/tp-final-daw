@@ -48,8 +48,10 @@ function IsCalendarDate(validationOptions?: ValidationOptions) {
 
 export class FindAgendaQueryDto {
   @ApiProperty({
-    description: 'Fecha de la agenda en formato YYYY-MM-DD.',
+    description:
+      'Fecha de la agenda en formato YYYY-MM-DD. Debe ser una fecha de calendario válida.',
     example: '2026-10-16',
+    format: 'date',
     pattern: '^\\d{4}-\\d{2}-\\d{2}$',
   })
   @IsString()
