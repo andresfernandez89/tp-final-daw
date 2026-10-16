@@ -1,5 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { plainToInstance } from 'class-transformer';
+import { validateOrReject } from 'class-validator';
 import type { Repository } from 'typeorm';
 import { FindReservationsQueryDto } from '../dtos/input/find-reservations-query.dto.js';
 import { OutputAgendaItemDto } from '../dtos/output/agenda-item.dto.js';
@@ -20,18 +22,11 @@ export class ReservationsService {
         order: { fecha_hora: 'ASC', id: 'ASC' },
       });
 
-      return reservations.map((reservation) => {
-        const item = Object.assign(new OutputReservationDto(), {
-          id: reservation.id,
-          doctorId: reservation.id_medico,
-          patientId: reservation.id_paciente,
-          dateTime: reservation.fecha_hora,
-          state: reservation.estado,
-          consultationFee: reservation.valor_consulta,
-        });
-
-        return item;
-      });
+      return await Promise.all(
+        reservations.map((reservation) =>
+          this.toReservationAdapter(reservation),
+        ),
+      );
     } catch {
       throw new InternalServerErrorException(
         'No se pudo obtener el listado de reservas.',
@@ -61,18 +56,11 @@ export class ReservationsService {
 
       const reservations = await query.getMany();
 
-      return reservations.map((reservation) => {
-        const item = Object.assign(new OutputReservationDto(), {
-          id: reservation.id,
-          doctorId: reservation.id_medico,
-          patientId: reservation.id_paciente,
-          dateTime: reservation.fecha_hora,
-          state: reservation.estado,
-          consultationFee: reservation.valor_consulta,
-        });
-
-        return item;
-      });
+      return await Promise.all(
+        reservations.map((reservation) =>
+          this.toReservationAdapter(reservation),
+        ),
+      );
     } catch {
       throw new InternalServerErrorException(
         'No se pudo obtener el listado de reservas.',
@@ -95,24 +83,51 @@ export class ReservationsService {
         .addOrderBy('r.id', 'ASC')
         .getMany();
 
-      return reservations.map((reservation) => {
-        const item = Object.assign(new OutputAgendaItemDto(), {
-          id: reservation.id,
-          dateTime: reservation.fecha_hora,
-          state: reservation.estado,
-          patientId: reservation.id_paciente,
-          patientDocument: reservation.paciente.documento,
-          patientFirstName: reservation.paciente.nombres,
-          patientLastName: reservation.paciente.apellidos,
-          consultationFee: reservation.valor_consulta,
-        });
-
-        return item;
-      });
+      return await Promise.all(
+        reservations.map((reservation) =>
+          this.toAgendaItemAdapter(reservation),
+        ),
+      );
     } catch {
       throw new InternalServerErrorException(
         'No se pudo obtener la agenda del médico.',
       );
     }
+  }
+
+  private async toReservationAdapter(
+    reservation: Reservation,
+  ): Promise<OutputReservationDto> {
+    const item = plainToInstance(OutputReservationDto, {
+      id: reservation.id,
+      doctorId: reservation.id_medico,
+      patientId: reservation.id_paciente,
+      dateTime: reservation.fecha_hora,
+      state: reservation.estado,
+      consultationFee: reservation.valor_consulta,
+    });
+
+    await validateOrReject(item);
+
+    return item;
+  }
+
+  private async toAgendaItemAdapter(
+    reservation: Reservation,
+  ): Promise<OutputAgendaItemDto> {
+    const item = plainToInstance(OutputAgendaItemDto, {
+      id: reservation.id,
+      dateTime: reservation.fecha_hora,
+      state: reservation.estado,
+      patientId: reservation.id_paciente,
+      patientDocument: reservation.paciente.documento,
+      patientFirstName: reservation.paciente.nombres,
+      patientLastName: reservation.paciente.apellidos,
+      consultationFee: reservation.valor_consulta,
+    });
+
+    await validateOrReject(item);
+
+    return item;
   }
 }

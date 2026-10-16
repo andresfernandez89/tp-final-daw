@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsEnum, IsInt, IsString } from 'class-validator';
+import { IsDate, IsEnum, IsInt, IsNotEmpty, IsString } from 'class-validator';
 import { ReservationState } from '../../enums/reservation-state.enum.js';
 
 export class OutputAgendaItemDto {
@@ -37,6 +37,7 @@ export class OutputAgendaItemDto {
     description: 'Documento del paciente.',
   })
   @IsString()
+  @IsNotEmpty()
   patientDocument: string;
 
   @ApiProperty({
@@ -44,6 +45,7 @@ export class OutputAgendaItemDto {
     description: 'Nombres del paciente.',
   })
   @IsString()
+  @IsNotEmpty()
   patientFirstName: string;
 
   @ApiProperty({
@@ -51,6 +53,7 @@ export class OutputAgendaItemDto {
     description: 'Apellidos del paciente.',
   })
   @IsString()
+  @IsNotEmpty()
   patientLastName: string;
 
   @ApiProperty({
