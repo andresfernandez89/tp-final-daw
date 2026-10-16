@@ -27,3 +27,11 @@ export function assertCancellationTime(
     );
   }
 }
+
+export function assertAttendanceTime(start: Date, now: Date): void {
+  if (now.getTime() < start.getTime()) {
+    throw new BadRequestException(
+      'La atención o ausencia sólo se puede registrar desde el inicio de la consulta.',
+    );
+  }
+}
