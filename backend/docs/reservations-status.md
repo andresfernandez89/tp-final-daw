@@ -1,4 +1,4 @@
-# Reservas: cancelación (2.5)
+# Reservas: cancelación, atención y ausencia (2.5 / 2.6)
 
 ## API implementada
 
@@ -9,23 +9,27 @@ No se cambian médico, paciente, horario ni arancel congelado.
 | Ruta                                        | Roles                   | Entrada                                        |
 | ------------------------------------------- | ----------------------- | ---------------------------------------------- |
 | `PATCH /api/v1/reservations/:id/cancel`     | PACIENTE, ADMINISTRADOR | Sin cuerpo requerido                           |
+| `PATCH /api/v1/reservations/:id/attendance` | MEDICO                  | `{"state":"ATENDIDO"}` o `{"state":"AUSENTE"}` |
 
-El paciente sólo cancela sus reservas (`JWT.sub = reservas.id_paciente`).
-La identidad nunca se toma del cuerpo.
+El paciente sólo cancela sus reservas (`JWT.sub = reservas.id_paciente`). El médico
+sólo modifica reservas propias, comparando `JWT.sub` con `medicos.id_usuario`, **no**
+con `reservas.id_medico`. La identidad nunca se toma del cuerpo. El DTO de atención
+rechaza campos adicionales, estados distintos, valores ausentes y tipos incorrectos.
 
 ### Matriz acordada
 
-| Estado actual | CANCELADO           |
-| ------------- | ------------------- |
-| ACTIVO        | Cancelación         |
-| CANCELADO     | Éxito sin escritura |
-| ATENDIDO      | Conflicto           |
-| AUSENTE       | Conflicto           |
+| Estado actual | CANCELADO           | ATENDIDO            | AUSENTE             |
+| ------------- | ------------------- | ------------------- | ------------------- |
+| ACTIVO        | Cancelación         | Atención            | Ausencia            |
+| CANCELADO     | Éxito sin escritura | Conflicto           | Conflicto           |
+| ATENDIDO      | Conflicto           | Éxito sin escritura | Corrección médica   |
+| AUSENTE       | Conflicto           | Corrección médica   | Éxito sin escritura |
 
 Siempre se aplican autenticación, rol, existencia y pertenencia, incluso en un
-reintento. Repetir una cancelación autorizada responde `200` sin `UPDATE`, aunque
-el plazo temporal ya no habilite una nueva modificación. No existe restauración
-a ACTIVO ni reversión de CANCELADO.
+reintento. Repetir el mismo estado autorizado responde `200` sin `UPDATE`, aunque
+el plazo temporal ya no habilite una nueva modificación. Se permite corregir
+ATENDIDO ↔ AUSENTE en ambas direcciones; no existe restauración a ACTIVO ni
+reversión de CANCELADO.
 
 ### Tiempo
 
@@ -36,15 +40,16 @@ a ACTIVO ni reversión de CANCELADO.
 - Paciente: puede cancelar hasta las 23:59:59.999 del día calendario anterior.
   No se exige una diferencia de 24 horas; desde medianoche del día de consulta falla.
 - Administrador: puede cancelar estrictamente antes del inicio; igualdad falla.
+- Médico: puede marcar o corregir desde el inicio inclusive, sin límite posterior.
 - El reloj de autoridad es `clock_timestamp()` de PostgreSQL, leído **después** de
   adquirir el bloqueo, no la hora de llegada HTTP ni el inicio de la transacción.
 
 ### Errores y Swagger
 
-`400`: ID inválido (entero positivo de PostgreSQL), plazo temporal;
+`400`: ID inválido (entero positivo de PostgreSQL), DTO inválido o plazo temporal;
 `401`: JWT ausente/inválido; `403`: rol/pertenencia; `404`: reserva inexistente;
 `409`: transición incompatible; `500`: persistencia o salida inválida. Swagger
-documenta la cancelación, el DTO de salida, los límites y las respuestas.
+documenta las dos operaciones, DTOs, límites, corrección y respuestas.
 
 ## Atomicidad sobre reservas existentes
 
@@ -53,9 +58,14 @@ la reserva. Estado y pertenencia se leen bajo bloqueo; la transición y el reloj
 se revalidan allí. Se actualiza exclusivamente `estado`; el DTO se mapea y valida
 antes del commit. Las excepciones revierten la transacción y liberan el bloqueo.
 
-Esto serializa cancelaciones concurrentes. Dos cancelaciones propias son
-idempotentes. Cada operación revalida el estado bajo lock; ATENDIDO y AUSENTE
-no se pueden cancelar. No se usa un `save` de entidad leída fuera del lock.
+Esto serializa cancelaciones y marcados concurrentes. Dos cancelaciones propias
+son idempotentes. En una carrera ACTIVO → ATENDIDO/AUSENTE, ambas operaciones
+válidas pueden responder `200`: la segunda operación serializada corrige el
+resultado de la primera. El estado final depende del orden de adquisición del
+bloqueo, no se impone prioridad a ninguno de los dos resultados médicos. Cada
+operación revalida el estado bajo lock; CANCELADO nunca se sobrescribe con un
+resultado médico. No se usa un `save` de entidad leído fuera del lock ni se agrega
+una restricción que impida correcciones válidas concurrentes.
 
 ## Contrato de integración pendiente: disponibilidad y creación
 
