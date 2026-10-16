@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
@@ -25,6 +26,7 @@ import { UserRole } from '../../auth/enums/user-role.enum.js';
 import { AuthGuard } from '../../auth/guards/auth.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
 import type { Request } from 'express';
+import { UpdateReservationAttendanceDto } from '../dtos/input/update-reservation-attendance.dto.js';
 import { OutputReservationDto } from '../dtos/output/reservation.dto.js';
 import { ReservationsService } from '../services/reservations.service.js';
 import type { ReservationActor } from '../services/reservations.service.js';
@@ -69,6 +71,47 @@ export class ReservationsController {
     @Req() request: Request & { usuario: ReservationActor },
   ): Promise<OutputReservationDto> {
     return this.reservationsService.cancel(id, request.usuario);
+  }
+
+  @Patch(':id/attendance')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.MEDICO)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Registrar atención o ausencia de una reserva propia',
+    description:
+      'Desde el inicio inclusive. ACTIVO pasa a ATENDIDO o AUSENTE; se permite corregir ' +
+      'ATENDIDO a AUSENTE y AUSENTE a ATENDIDO. CANCELADO no se puede modificar. ' +
+      'Repetir el mismo estado autorizado devuelve éxito sin escritura ni límite temporal.',
+  })
+  @ApiParam({ name: 'id', schema: { type: 'integer', minimum: 1 } })
+  @ApiOkResponse({
+    type: OutputReservationDto,
+    description: 'Reserva actualizada o ya en ese estado.',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Identificador o DTO inválido, campos desconocidos o consulta no iniciada.',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token ausente, inválido o expirado.',
+  })
+  @ApiForbiddenResponse({
+    description: 'Rol no autorizado o reserva de otro médico.',
+  })
+  @ApiNotFoundResponse({ description: 'La reserva no existe.' })
+  @ApiConflictResponse({
+    description: 'Transición incompatible con el estado persistido.',
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Error de persistencia o validación de salida.',
+  })
+  markAttendance(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: Request & { usuario: ReservationActor },
+    @Body() input: UpdateReservationAttendanceDto,
+  ): Promise<OutputReservationDto> {
+    return this.reservationsService.markAttendance(id, request.usuario, input);
   }
 
   @Get('availability')
