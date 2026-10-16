@@ -192,6 +192,20 @@ const seedReservations = [
     hora: '11:00',
     estado: 'CANCELADO',
   },
+  {
+    documentoMedico: '20000001',
+    documentoPaciente: '30000001',
+    diasDesdeHoy: 0,
+    hora: '15:00',
+    estado: 'ACTIVO',
+  },
+  {
+    documentoMedico: '20000001',
+    documentoPaciente: '30000001',
+    diasDesdeHoy: 0,
+    hora: '08:00',
+    estado: 'ACTIVO',
+  },
 ] as const;
 
 type SeedCounts = {
@@ -277,11 +291,16 @@ async function runInitialSeed(): Promise<void> {
       );
     }
 
+    // Sólo HOY usa la fecha clínica explícita; las ocho reservas originales conservan CURRENT_DATE.
     for (const reservation of seedReservations) {
       await queryRunner.query(
         `INSERT INTO reservas
           (id_medico, id_paciente, fecha_hora, estado, valor_consulta)
-         SELECT m.id, p.id, CURRENT_DATE + $3::integer + $4::time,
+         SELECT m.id, p.id,
+                (CASE WHEN $3::integer = 0
+                   THEN (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date
+                   ELSE CURRENT_DATE
+                 END) + $3::integer + $4::time,
                 $5::estados_reservas, m.valor_consulta
          FROM medicos m
          INNER JOIN usuarios u ON u.id = m.id_usuario
@@ -353,7 +372,7 @@ async function runInitialSeed(): Promise<void> {
 
     if (
       reservationCounts?.total !== seedReservations.length ||
-      reservationCounts.activas !== 2 ||
+      reservationCounts.activas !== 4 ||
       reservationCounts.atendidas !== 2 ||
       reservationCounts.ausentes !== 2 ||
       reservationCounts.canceladas !== 2 ||
