@@ -20,7 +20,9 @@ import { Roles } from '../../auth/decorators/roles.decorator.js';
 import { UserRole } from '../../auth/enums/user-role.enum.js';
 import { AuthGuard } from '../../auth/guards/auth.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
+import { FindAgendaQueryDto } from '../dtos/input/find-agenda-query.dto.js';
 import { FindReservationsQueryDto } from '../dtos/input/find-reservations-query.dto.js';
+import { OutputAgendaItemDto } from '../dtos/output/agenda-item.dto.js';
 import { OutputReservationDto } from '../dtos/output/reservation.dto.js';
 import { ReservationsService } from '../services/reservations.service.js';
 
@@ -84,17 +86,7 @@ export class ReservationsController {
   findMyReservations(
     @Req() request: AuthenticatedRequest,
   ): Promise<OutputReservationDto[]> {
-    const patientId = request.usuario?.sub;
-
-    if (
-      typeof patientId !== 'number' ||
-      !Number.isInteger(patientId) ||
-      patientId <= 0
-    ) {
-      throw new UnauthorizedException('Token de acceso inválido.');
-    }
-
-    return this.reservationsService.findByPatient(patientId);
+    return this.reservationsService.findByPatient(this.extractUserId(request));
   }
 
   @Get('admin')
@@ -104,5 +96,31 @@ export class ReservationsController {
     @Query() query: FindReservationsQueryDto,
   ): Promise<OutputReservationDto[]> {
     return this.reservationsService.findAll(query);
+  }
+
+  @Get('agenda')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.MEDICO)
+  findAgenda(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: FindAgendaQueryDto,
+  ): Promise<OutputAgendaItemDto[]> {
+    const doctorUserId = this.extractUserId(request);
+
+    return this.reservationsService.findAgendaByDate(doctorUserId, query.date);
+  }
+
+  private extractUserId(request: AuthenticatedRequest): number {
+    const userId = request.usuario?.sub;
+
+    if (
+      typeof userId !== 'number' ||
+      !Number.isInteger(userId) ||
+      userId <= 0
+    ) {
+      throw new UnauthorizedException('Token de acceso inválido.');
+    }
+
+    return userId;
   }
 }
