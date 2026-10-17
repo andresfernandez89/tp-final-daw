@@ -25,17 +25,13 @@ import { AvailabilitySlotDto } from '../dtos/output/availability-slot.dto.js';
 import { OutputReservationDto } from '../dtos/output/reservation.dto.js';
 import { Reservation } from '../entities/reservation.entity.js';
 import { ReservationState } from '../enums/reservation-state.enum.js';
-import {
-  assertAttendanceTime,
-  assertCancellationTime,
-  CLINIC_TIME_ZONE,
-} from '../policies/reservation-time.policy.js';
 
 export type ReservationActor = { sub: number; role: UserRole };
 
 type LockedReservation = OutputReservationDto & { doctorUserId: number };
 
 const APPOINTMENT_HOURS = [8, 9, 10, 11, 12, 13, 14, 15];
+const CLINIC_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
 @Injectable()
 export class ReservationsService {
@@ -89,16 +85,23 @@ export class ReservationsService {
     return this.dataSource.transaction(async (manager) => {
       // El timestamp existente es una hora de pared de la clínica, no del proceso Node.
       // El lock se toma antes de leer estado y reloj para revalidar luego de cualquier espera.
-      const [reservation] = await manager.query<LockedReservation[]>(
-        `SELECT r.id, r.id_medico AS "doctorId", r.id_paciente AS "patientId",
-                r.fecha_hora AT TIME ZONE $2 AS "dateTime", r.estado AS state,
-                r.valor_consulta AS "consultationFee", m.id_usuario AS "doctorUserId"
-         FROM reservas r
-         INNER JOIN medicos m ON m.id = r.id_medico
-         WHERE r.id = $1
-         FOR UPDATE OF r`,
-        [id, CLINIC_TIME_ZONE],
-      );
+      const reservation = await manager
+        .createQueryBuilder(Reservation, 'reserva')
+        .select('reserva.id', 'id')
+        .addSelect('reserva.id_medico', 'doctorId')
+        .addSelect('reserva.id_paciente', 'patientId')
+        .addSelect(
+          'reserva.fecha_hora AT TIME ZONE :clinicTimeZone',
+          'dateTime',
+        )
+        .addSelect('reserva.estado', 'state')
+        .addSelect('reserva.valor_consulta', 'consultationFee')
+        .addSelect('medico.id_usuario', 'doctorUserId')
+        .innerJoin('reserva.medico', 'medico')
+        .where({ id })
+        .setParameter('clinicTimeZone', CLINIC_TIME_ZONE)
+        .setLock('pessimistic_write', undefined, ['reserva'])
+        .getRawOne<LockedReservation>();
 
       if (!reservation) {
         throw new NotFoundException('No se encontró la reserva.');
@@ -131,23 +134,39 @@ export class ReservationsService {
         );
       }
 
-      const [{ now }] = await manager.query<{ now: Date }[]>(
-        'SELECT clock_timestamp() AS now',
-      );
+      const clock = await manager
+        .createQueryBuilder(Reservation, 'reserva')
+        .select('clock_timestamp()', 'now')
+        .where({ id })
+        .getRawOne<{ now: Date }>();
+      if (!clock) {
+        throw new InternalServerErrorException(
+          'No se pudo actualizar el estado de la reserva.',
+        );
+      }
+      const { now } = clock;
       if (target === ReservationState.CANCELADO) {
-        assertCancellationTime(
+        this.assertCancellationTime(
           reservation.dateTime,
           now,
           actor.role as UserRole.PACIENTE | UserRole.ADMINISTRADOR,
         );
       } else {
-        assertAttendanceTime(reservation.dateTime, now);
+        this.assertAttendanceTime(reservation.dateTime, now);
       }
 
-      await manager.query('UPDATE reservas SET estado = $2 WHERE id = $1', [
-        id,
-        target,
-      ]);
+      const result = await manager
+        .createQueryBuilder()
+        .update(Reservation)
+        .set({ estado: target })
+        .where({ id })
+        .returning(['estado'])
+        .execute();
+      if (result.affected !== 1 || result.raw[0]?.estado !== target) {
+        throw new InternalServerErrorException(
+          'No se pudo actualizar el estado de la reserva.',
+        );
+      }
 
       // Validar antes del commit: una salida inválida tampoco deja un cambio persistido.
       return toReservationDto({ ...reservation, state: target });
@@ -206,6 +225,41 @@ export class ReservationsService {
         'No se pudo obtener la disponibilidad de reservas.',
       );
     }
+  }
+
+  private assertCancellationTime(
+    start: Date,
+    now: Date,
+    role: UserRole.PACIENTE | UserRole.ADMINISTRADOR,
+  ): void {
+    if (role === UserRole.PACIENTE) {
+      if (this.calendarDate(now) >= this.calendarDate(start)) {
+        throw new BadRequestException(
+          'El paciente sólo puede cancelar hasta el día anterior a la consulta.',
+        );
+      }
+    } else if (now.getTime() >= start.getTime()) {
+      throw new BadRequestException(
+        'El administrador sólo puede cancelar antes del inicio de la consulta.',
+      );
+    }
+  }
+
+  private assertAttendanceTime(start: Date, now: Date): void {
+    if (now.getTime() < start.getTime()) {
+      throw new BadRequestException(
+        'La atención o ausencia sólo se puede registrar desde el inicio de la consulta.',
+      );
+    }
+  }
+
+  private calendarDate(date: Date): string {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: CLINIC_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
   }
 
   private getClinicClock(): { date: string; hour: number } {
