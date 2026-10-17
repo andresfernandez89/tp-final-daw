@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import { UserRole } from '../../auth/enums/user-role.enum.js';
@@ -12,6 +16,20 @@ export class DoctorsService {
     @InjectRepository(Doctor)
     private readonly doctorsRepository: Repository<Doctor>,
   ) {}
+
+  async findActiveById(id: number): Promise<Pick<Doctor, 'id'>> {
+    const doctor = await this.doctorsRepository.findOne({
+      select: { id: true },
+      where: {
+        id,
+        usuario: { estado: UserState.ACTIVO, rol: UserRole.MEDICO },
+      },
+    });
+    if (!doctor) {
+      throw new NotFoundException('No se encontró un médico activo.');
+    }
+    return doctor;
+  }
 
   async findAll(): Promise<DoctorListItemDto[]> {
     try {
