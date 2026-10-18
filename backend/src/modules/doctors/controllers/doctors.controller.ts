@@ -21,6 +21,7 @@ import { Roles } from '../../auth/decorators/roles.decorator.js';
 import { UserRole } from '../../auth/enums/user-role.enum.js';
 import { AuthGuard } from '../../auth/guards/auth.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
+import { UpdateDoctorFeeDto } from '../dtos/input/update-doctor-fee.dto.js';
 import { DoctorListItemDto } from '../dtos/output/doctor-list-item.dto.js';
 import { DoctorsService } from '../services/doctors.service.js';
 
@@ -60,7 +61,7 @@ export class DoctorsController {
   @ApiBearerAuth()
   async updateValorConsulta(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { valor_consulta: number },
+    @Body() body: UpdateDoctorFeeDto,
   ): Promise<DoctorListItemDto> {
     return this.doctorsService.updateValorConsulta(id, body.valor_consulta);
   }
