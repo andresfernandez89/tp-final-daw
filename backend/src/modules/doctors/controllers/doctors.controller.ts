@@ -55,7 +55,8 @@ export class DoctorsController {
   }
 
   @Patch(':id/valor-consulta')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMINISTRADOR)
   @ApiBearerAuth()
   async updateValorConsulta(
     @Param('id', ParseIntPipe) id: number,
