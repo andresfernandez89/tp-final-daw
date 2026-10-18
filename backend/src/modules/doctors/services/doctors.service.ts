@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { plainToInstance } from 'class-transformer';
+import { validateOrReject } from 'class-validator';
 import type { Repository } from 'typeorm';
 import { UserRole } from '../../auth/enums/user-role.enum.js';
 import { UserState } from '../../auth/enums/user-state.enum.js';
@@ -76,15 +78,17 @@ export class DoctorsService {
 
       doctor.valor_consulta = valorConsulta;
 
-      await this.doctorsRepository.save(doctor);
-
-      const item = Object.assign(new DoctorListItemDto(), {
+      const item = plainToInstance(DoctorListItemDto, {
         id: doctor.id,
         nombres: doctor.usuario?.nombres ?? '',
         apellidos: doctor.usuario?.apellidos ?? '',
         matricula: doctor.matricula,
-        valor_consulta: doctor.valor_consulta,
+        valor_consulta: valorConsulta,
       });
+
+      await validateOrReject(item);
+
+      await this.doctorsRepository.save(doctor);
 
       return item;
     } catch (error) {

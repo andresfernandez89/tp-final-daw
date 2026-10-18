@@ -9,11 +9,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiForbiddenResponse,
   ApiInternalServerErrorResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -59,6 +62,33 @@ export class DoctorsController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMINISTRADOR)
   @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Modificar valor de consulta',
+    description:
+      'Actualiza únicamente el valor de consulta del médico indicado. ' +
+      'Las reservas existentes conservan el importe registrado al momento de su creación.',
+  })
+  @ApiParam({ name: 'id', schema: { type: 'integer', minimum: 1 } })
+  @ApiOkResponse({
+    type: DoctorListItemDto,
+    description: 'Médico con el valor de consulta actualizado.',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Identificador o datos del cuerpo inválidos o desconocidos.',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token ausente, inválido o expirado.',
+  })
+  @ApiForbiddenResponse({
+    description: 'El rol del usuario no tiene permiso para modificar el arancel.',
+  })
+  @ApiNotFoundResponse({
+    description: 'El médico no existe.',
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'No se pudo actualizar el valor de consulta.',
+  })
   async updateValorConsulta(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateDoctorFeeDto,
