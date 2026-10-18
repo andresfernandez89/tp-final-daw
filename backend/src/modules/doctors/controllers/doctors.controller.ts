@@ -1,4 +1,13 @@
-import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  ParseIntPipe,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -43,5 +52,15 @@ export class DoctorsController {
   })
   findAll(): Promise<DoctorListItemDto[]> {
     return this.doctorsService.findAll();
+  }
+
+  @Patch(':id/valor-consulta')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  async updateValorConsulta(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { valor_consulta: number },
+  ): Promise<DoctorListItemDto> {
+    return this.doctorsService.updateValorConsulta(id, body.valor_consulta);
   }
 }

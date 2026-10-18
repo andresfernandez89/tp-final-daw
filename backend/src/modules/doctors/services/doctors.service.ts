@@ -62,4 +62,38 @@ export class DoctorsService {
       );
     }
   }
+
+  async updateValorConsulta(id: number, valorConsulta: number): Promise<DoctorListItemDto> {
+    try {
+      const doctor = await this.doctorsRepository.findOne({
+        where: { id },
+        relations: { usuario: true },
+      });
+
+      if (!doctor) {
+        throw new NotFoundException('No se encontró un médico activo.');
+      }
+
+      doctor.valor_consulta = valorConsulta;
+
+      await this.doctorsRepository.save(doctor);
+
+      const item = Object.assign(new DoctorListItemDto(), {
+        id: doctor.id,
+        nombres: doctor.usuario?.nombres ?? '',
+        apellidos: doctor.usuario?.apellidos ?? '',
+        matricula: doctor.matricula,
+        valor_consulta: doctor.valor_consulta,
+      });
+
+      return item;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'No se pudo actualizar el valor de consulta.',
+      );
+    }
+  }
 }
