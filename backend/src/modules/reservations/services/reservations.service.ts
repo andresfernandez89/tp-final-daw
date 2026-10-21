@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -79,19 +80,31 @@ export class ReservationsService {
 
   async findByPatient(patientId: number): Promise<OutputReservationDto[]> {
     try {
-      const reservations = await this.reservationsRepository.find({
-        where: { id_paciente: patientId },
-        order: { fecha_hora: 'ASC', id: 'ASC' },
-      });
+      const reservations = await this.reservationsRepository
+        .createQueryBuilder('r')
+        .select('r.id', 'id')
+        .addSelect('r.id_medico', 'doctorId')
+        .addSelect('r.id_paciente', 'patientId')
+        .addSelect(
+          'r.fecha_hora AT TIME ZONE :clinicTimeZone',
+          'dateTime',
+        )
+        .addSelect('r.estado', 'state')
+        .addSelect('r.valor_consulta', 'consultationFee')
+        .where('r.id_paciente = :patientId', { patientId })
+        .setParameter('clinicTimeZone', CLINIC_TIME_ZONE)
+        .orderBy('r.fecha_hora', 'ASC')
+        .addOrderBy('r.id', 'ASC')
+        .getRawMany<OutputReservationDto>();
 
       return await Promise.all(
-        reservations.map((reservation) =>
-          this.toReservationAdapter(reservation),
-        ),
+        reservations.map((reservation) => toReservationDto(reservation)),
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException(
         'No se pudo obtener el listado de reservas.',
+        { cause: error },
       );
     }
   }
@@ -102,7 +115,17 @@ export class ReservationsService {
     try {
       const query = this.reservationsRepository
         .createQueryBuilder('r')
+        .select('r.id', 'id')
+        .addSelect('r.id_medico', 'doctorId')
+        .addSelect('r.id_paciente', 'patientId')
+        .addSelect(
+          'r.fecha_hora AT TIME ZONE :clinicTimeZone',
+          'dateTime',
+        )
+        .addSelect('r.estado', 'state')
+        .addSelect('r.valor_consulta', 'consultationFee')
         .leftJoin('r.paciente', 'p')
+        .setParameter('clinicTimeZone', CLINIC_TIME_ZONE)
         .orderBy('r.fecha_hora', 'ASC')
         .addOrderBy('r.id', 'ASC');
 
@@ -116,16 +139,16 @@ export class ReservationsService {
         });
       }
 
-      const reservations = await query.getMany();
+      const reservations = await query.getRawMany<OutputReservationDto>();
 
       return await Promise.all(
-        reservations.map((reservation) =>
-          this.toReservationAdapter(reservation),
-        ),
+        reservations.map((reservation) => toReservationDto(reservation)),
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException(
         'No se pudo obtener el listado de reservas.',
+        { cause: error },
       );
     }
   }
@@ -137,22 +160,41 @@ export class ReservationsService {
     try {
       const reservations = await this.reservationsRepository
         .createQueryBuilder('r')
+        .select('r.id', 'id')
+        .addSelect(
+          'r.fecha_hora AT TIME ZONE :clinicTimeZone',
+          'dateTime',
+        )
+        .addSelect('r.estado', 'state')
+        .addSelect('r.id_paciente', 'patientId')
+        .addSelect('p.documento', 'patientDocument')
+        .addSelect('p.nombres', 'patientFirstName')
+        .addSelect('p.apellidos', 'patientLastName')
+        .addSelect('r.valor_consulta', 'consultationFee')
         .innerJoin('r.medico', 'm')
-        .innerJoinAndSelect('r.paciente', 'p')
+        .innerJoin('r.paciente', 'p')
         .where('m.id_usuario = :doctorUserId', { doctorUserId })
-        .andWhere('DATE(r.fecha_hora) = :date', { date })
+        .andWhere('r.fecha_hora >= CAST(:dayStart AS timestamp)', {
+          dayStart: `${date} 00:00:00`,
+        })
+        .andWhere(
+          "r.fecha_hora < CAST(:dayStart AS timestamp) + INTERVAL '1 day'",
+        )
+        .setParameter('clinicTimeZone', CLINIC_TIME_ZONE)
         .orderBy('r.fecha_hora', 'ASC')
         .addOrderBy('r.id', 'ASC')
-        .getMany();
+        .getRawMany<OutputAgendaItemDto>();
 
       return await Promise.all(
         reservations.map((reservation) =>
           this.toAgendaItemAdapter(reservation),
         ),
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException(
         'No se pudo obtener la agenda del médico.',
+        { cause: error },
       );
     }
   }
@@ -313,35 +355,18 @@ export class ReservationsService {
     });
   }
 
-  private async toReservationAdapter(
-    reservation: Reservation,
-  ): Promise<OutputReservationDto> {
-    const item = plainToInstance(OutputReservationDto, {
-      id: reservation.id,
-      doctorId: reservation.id_medico,
-      patientId: reservation.id_paciente,
-      dateTime: reservation.fecha_hora,
-      state: reservation.estado,
-      consultationFee: reservation.valor_consulta,
-    });
-
-    await validateOrReject(item);
-
-    return item;
-  }
-
   private async toAgendaItemAdapter(
-    reservation: Reservation,
+    reservation: OutputAgendaItemDto,
   ): Promise<OutputAgendaItemDto> {
     const item = plainToInstance(OutputAgendaItemDto, {
       id: reservation.id,
-      dateTime: reservation.fecha_hora,
-      state: reservation.estado,
-      patientId: reservation.id_paciente,
-      patientDocument: reservation.paciente.documento,
-      patientFirstName: reservation.paciente.nombres,
-      patientLastName: reservation.paciente.apellidos,
-      consultationFee: reservation.valor_consulta,
+      dateTime: reservation.dateTime,
+      state: reservation.state,
+      patientId: reservation.patientId,
+      patientDocument: reservation.patientDocument,
+      patientFirstName: reservation.patientFirstName,
+      patientLastName: reservation.patientLastName,
+      consultationFee: reservation.consultationFee,
     });
 
     await validateOrReject(item);

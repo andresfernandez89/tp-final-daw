@@ -7,7 +7,6 @@ import {
   Patch,
   Query,
   Req,
-  UnauthorizedException,
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
@@ -29,6 +28,7 @@ import { Roles } from '../../auth/decorators/roles.decorator.js';
 import { UserRole } from '../../auth/enums/user-role.enum.js';
 import { AuthGuard } from '../../auth/guards/auth.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
+import type { AuthenticatedUser } from '../../auth/types/authenticated-user.js';
 import { FindAgendaQueryDto } from '../dtos/input/find-agenda-query.dto.js';
 import { FindAvailabilityQueryDto } from '../dtos/input/find-availability-query.dto.js';
 import { FindReservationsQueryDto } from '../dtos/input/find-reservations-query.dto.js';
@@ -40,7 +40,7 @@ import { ReservationsService } from '../services/reservations.service.js';
 import type { ReservationActor } from '../services/reservations.service.js';
 
 interface AuthenticatedRequest extends Request {
-  usuario?: { sub?: number };
+  usuario: AuthenticatedUser;
 }
 
 @ApiTags('Reservas')
@@ -196,7 +196,7 @@ export class ReservationsController {
   findMyReservations(
     @Req() request: AuthenticatedRequest,
   ): Promise<OutputReservationDto[]> {
-    return this.reservationsService.findByPatient(this.extractUserId(request));
+    return this.reservationsService.findByPatient(request.usuario.sub);
   }
 
   @Get('admin')
@@ -276,22 +276,9 @@ export class ReservationsController {
     @Req() request: AuthenticatedRequest,
     @Query() query: FindAgendaQueryDto,
   ): Promise<OutputAgendaItemDto[]> {
-    const doctorUserId = this.extractUserId(request);
-
-    return this.reservationsService.findAgendaByDate(doctorUserId, query.date);
-  }
-
-  private extractUserId(request: AuthenticatedRequest): number {
-    const userId = request.usuario?.sub;
-
-    if (
-      typeof userId !== 'number' ||
-      !Number.isInteger(userId) ||
-      userId <= 0
-    ) {
-      throw new UnauthorizedException('Token de acceso inválido.');
-    }
-
-    return userId;
+    return this.reservationsService.findAgendaByDate(
+      request.usuario.sub,
+      query.date,
+    );
   }
 }

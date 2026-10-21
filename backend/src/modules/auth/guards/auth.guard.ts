@@ -7,11 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { UserRole } from '../enums/user-role.enum.js';
-
-interface AuthenticatedUser {
-  sub: number;
-  role: UserRole;
-}
+import type { AuthenticatedUser } from '../types/authenticated-user.js';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
