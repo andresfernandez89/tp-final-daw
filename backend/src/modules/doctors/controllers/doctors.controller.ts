@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -27,6 +28,9 @@ import { RolesGuard } from '../../auth/guards/roles.guard.js';
 import { UpdateDoctorFeeDto } from '../dtos/input/update-doctor-fee.dto.js';
 import { DoctorListItemDto } from '../dtos/output/doctor-list-item.dto.js';
 import { DoctorsService } from '../services/doctors.service.js';
+
+const DOCTOR_ID_MIN = 1;
+const DOCTOR_ID_MAX = 2147483647;
 
 @ApiTags('Médicos')
 @Controller('doctors')
@@ -68,7 +72,14 @@ export class DoctorsController {
       'Actualiza únicamente el valor de consulta del médico indicado. ' +
       'Las reservas existentes conservan el importe registrado al momento de su creación.',
   })
-  @ApiParam({ name: 'id', schema: { type: 'integer', minimum: 1 } })
+  @ApiParam({
+    name: 'id',
+    schema: {
+      type: 'integer',
+      minimum: DOCTOR_ID_MIN,
+      maximum: DOCTOR_ID_MAX,
+    },
+  })
   @ApiOkResponse({
     type: DoctorListItemDto,
     description: 'Médico con el valor de consulta actualizado.',
@@ -93,6 +104,12 @@ export class DoctorsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateDoctorFeeDto,
   ): Promise<DoctorListItemDto> {
+    if (!Number.isInteger(id) || id < DOCTOR_ID_MIN || id > DOCTOR_ID_MAX) {
+      throw new BadRequestException(
+        `El identificador del médico debe ser un entero entre ${DOCTOR_ID_MIN} y ${DOCTOR_ID_MAX}.`,
+      );
+    }
+
     return this.doctorsService.updateValorConsulta(id, body.valor_consulta);
   }
 }

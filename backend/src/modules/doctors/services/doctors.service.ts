@@ -73,7 +73,7 @@ export class DoctorsService {
       });
 
       if (!doctor) {
-        throw new NotFoundException('No se encontró un médico activo.');
+        throw new NotFoundException('No se encontró un médico.');
       }
 
       const item = plainToInstance(DoctorListItemDto, {
@@ -86,10 +86,14 @@ export class DoctorsService {
 
       await validateOrReject(item);
 
-      await this.doctorsRepository.update(
+      const result = await this.doctorsRepository.update(
         { id },
         { valor_consulta: valorConsulta },
       );
+
+      if (result.affected === 0) {
+        throw new NotFoundException('No se encontró un médico.');
+      }
 
       return item;
     } catch (error) {

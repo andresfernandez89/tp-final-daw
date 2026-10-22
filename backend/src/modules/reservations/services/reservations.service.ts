@@ -2,11 +2,13 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { plainToInstance } from 'class-transformer';
 import { validateOrReject } from 'class-validator';
 import {
   And,
@@ -20,7 +22,9 @@ import { UserRole } from '../../auth/enums/user-role.enum.js';
 import { DoctorsService } from '../../doctors/services/doctors.service.js';
 import { toReservationDto } from '../adapters/reservation.adapter.js';
 import { FindAvailabilityQueryDto } from '../dtos/input/find-availability-query.dto.js';
+import { FindReservationsQueryDto } from '../dtos/input/find-reservations-query.dto.js';
 import { UpdateReservationAttendanceDto } from '../dtos/input/update-reservation-attendance.dto.js';
+import { OutputAgendaItemDto } from '../dtos/output/agenda-item.dto.js';
 import { AvailabilitySlotDto } from '../dtos/output/availability-slot.dto.js';
 import { OutputReservationDto } from '../dtos/output/reservation.dto.js';
 import { Reservation } from '../entities/reservation.entity.js';
@@ -42,7 +46,10 @@ export class ReservationsService {
     private readonly doctorsService: DoctorsService,
   ) {}
 
-  cancel(id: number, actor: ReservationActor): Promise<OutputReservationDto> {
+  async cancel(
+    id: number,
+    actor: ReservationActor,
+  ): Promise<OutputReservationDto> {
     if (![UserRole.PACIENTE, UserRole.ADMINISTRADOR].includes(actor.role)) {
       throw new ForbiddenException(
         'El rol no tiene permiso para cancelar reservas.',
@@ -51,7 +58,7 @@ export class ReservationsService {
     return this.changeState(id, actor, ReservationState.CANCELADO);
   }
 
-  markAttendance(
+  async markAttendance(
     id: number,
     actor: ReservationActor,
     input: UpdateReservationAttendanceDto,
@@ -69,6 +76,181 @@ export class ReservationsService {
       throw new BadRequestException('El estado debe ser ATENDIDO o AUSENTE.');
     }
     return this.changeState(id, actor, input.state);
+  }
+
+  async findByPatient(patientId: number): Promise<OutputReservationDto[]> {
+    try {
+      const reservations = await this.reservationsRepository
+        .createQueryBuilder('r')
+        .select('r.id', 'id')
+        .addSelect('r.id_medico', 'doctorId')
+        .addSelect('r.id_paciente', 'patientId')
+        .addSelect(
+          'r.fecha_hora AT TIME ZONE :clinicTimeZone',
+          'dateTime',
+        )
+        .addSelect('r.estado', 'state')
+        .addSelect('r.valor_consulta', 'consultationFee')
+        .where('r.id_paciente = :patientId', { patientId })
+        .setParameter('clinicTimeZone', CLINIC_TIME_ZONE)
+        .orderBy('r.fecha_hora', 'ASC')
+        .addOrderBy('r.id', 'ASC')
+        .getRawMany<OutputReservationDto>();
+
+      return await Promise.all(
+        reservations.map((reservation) => toReservationDto(reservation)),
+      );
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException(
+        'No se pudo obtener el listado de reservas.',
+        { cause: error },
+      );
+    }
+  }
+
+  async findAll(
+    filters: FindReservationsQueryDto,
+  ): Promise<OutputReservationDto[]> {
+    try {
+      const query = this.reservationsRepository
+        .createQueryBuilder('r')
+        .select('r.id', 'id')
+        .addSelect('r.id_medico', 'doctorId')
+        .addSelect('r.id_paciente', 'patientId')
+        .addSelect(
+          'r.fecha_hora AT TIME ZONE :clinicTimeZone',
+          'dateTime',
+        )
+        .addSelect('r.estado', 'state')
+        .addSelect('r.valor_consulta', 'consultationFee')
+        .leftJoin('r.paciente', 'p')
+        .setParameter('clinicTimeZone', CLINIC_TIME_ZONE)
+        .orderBy('r.fecha_hora', 'ASC')
+        .addOrderBy('r.id', 'ASC');
+
+      if (filters.state !== undefined) {
+        query.andWhere('r.estado = :state', { state: filters.state });
+      }
+
+      if (filters.document !== undefined) {
+        query.andWhere('p.documento = :document', {
+          document: filters.document.trim(),
+        });
+      }
+
+      const reservations = await query.getRawMany<OutputReservationDto>();
+
+      return await Promise.all(
+        reservations.map((reservation) => toReservationDto(reservation)),
+      );
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException(
+        'No se pudo obtener el listado de reservas.',
+        { cause: error },
+      );
+    }
+  }
+
+  async findAgendaByDate(
+    doctorUserId: number,
+    date: string,
+  ): Promise<OutputAgendaItemDto[]> {
+    try {
+      const reservations = await this.reservationsRepository
+        .createQueryBuilder('r')
+        .select('r.id', 'id')
+        .addSelect(
+          'r.fecha_hora AT TIME ZONE :clinicTimeZone',
+          'dateTime',
+        )
+        .addSelect('r.estado', 'state')
+        .addSelect('r.id_paciente', 'patientId')
+        .addSelect('p.documento', 'patientDocument')
+        .addSelect('p.nombres', 'patientFirstName')
+        .addSelect('p.apellidos', 'patientLastName')
+        .addSelect('r.valor_consulta', 'consultationFee')
+        .innerJoin('r.medico', 'm')
+        .innerJoin('r.paciente', 'p')
+        .where('m.id_usuario = :doctorUserId', { doctorUserId })
+        .andWhere('r.fecha_hora >= CAST(:dayStart AS timestamp)', {
+          dayStart: `${date} 00:00:00`,
+        })
+        .andWhere(
+          "r.fecha_hora < CAST(:dayStart AS timestamp) + INTERVAL '1 day'",
+        )
+        .setParameter('clinicTimeZone', CLINIC_TIME_ZONE)
+        .orderBy('r.fecha_hora', 'ASC')
+        .addOrderBy('r.id', 'ASC')
+        .getRawMany<OutputAgendaItemDto>();
+
+      return await Promise.all(
+        reservations.map((reservation) =>
+          this.toAgendaItemAdapter(reservation),
+        ),
+      );
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException(
+        'No se pudo obtener la agenda del médico.',
+        { cause: error },
+      );
+    }
+  }
+
+  async findAvailability(
+    query: FindAvailabilityQueryDto,
+  ): Promise<AvailabilitySlotDto[]> {
+    const clock = this.getClinicClock();
+    if (
+      query.date < clock.date ||
+      query.date > this.addCalendarDays(clock.date, 30)
+    ) {
+      throw new BadRequestException(
+        'La fecha debe estar entre hoy y los próximos 30 días inclusive, según la hora de Argentina.',
+      );
+    }
+
+    try {
+      await this.doctorsService.findActiveById(query.doctorId);
+
+      const dayStart = new Date(`${query.date}T00:00:00`);
+      const dayEnd = new Date(
+        `${this.addCalendarDays(query.date, 1)}T00:00:00`,
+      );
+      const occupied = await this.reservationsRepository.find({
+        select: { fecha_hora: true },
+        where: {
+          id_medico: query.doctorId,
+          estado: Not(ReservationState.CANCELADO),
+          fecha_hora: And(MoreThanOrEqual(dayStart), LessThan(dayEnd)),
+        },
+      });
+      const occupiedHours = occupied.map((reservation) =>
+        reservation.fecha_hora.getHours(),
+      );
+
+      const freeHours = APPOINTMENT_HOURS.filter((hour) => {
+        if (query.date === clock.date && hour <= clock.hour) return false;
+        return !occupiedHours.includes(hour);
+      });
+
+      const slots: AvailabilitySlotDto[] = [];
+      for (const hour of freeHours) {
+        const slot = new AvailabilitySlotDto();
+        slot.dateTime = `${query.date}T${String(hour).padStart(2, '0')}:00:00-03:00`;
+        slots.push(slot);
+      }
+
+      await Promise.all(slots.map((slot) => validateOrReject(slot)));
+      return slots;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(
+        'No se pudo obtener la disponibilidad de reservas.',
+      );
+    }
   }
 
   private async changeState(
@@ -173,58 +355,23 @@ export class ReservationsService {
     });
   }
 
-  async findAvailability(
-    query: FindAvailabilityQueryDto,
-  ): Promise<AvailabilitySlotDto[]> {
-    const clock = this.getClinicClock();
-    if (
-      query.date < clock.date ||
-      query.date > this.addCalendarDays(clock.date, 30)
-    ) {
-      throw new BadRequestException(
-        'La fecha debe estar entre hoy y los próximos 30 días inclusive, según la hora de Argentina.',
-      );
-    }
+  private async toAgendaItemAdapter(
+    reservation: OutputAgendaItemDto,
+  ): Promise<OutputAgendaItemDto> {
+    const item = plainToInstance(OutputAgendaItemDto, {
+      id: reservation.id,
+      dateTime: reservation.dateTime,
+      state: reservation.state,
+      patientId: reservation.patientId,
+      patientDocument: reservation.patientDocument,
+      patientFirstName: reservation.patientFirstName,
+      patientLastName: reservation.patientLastName,
+      consultationFee: reservation.consultationFee,
+    });
 
-    try {
-      await this.doctorsService.findActiveById(query.doctorId);
+    await validateOrReject(item);
 
-      const dayStart = new Date(`${query.date}T00:00:00`);
-      const dayEnd = new Date(
-        `${this.addCalendarDays(query.date, 1)}T00:00:00`,
-      );
-      const occupied = await this.reservationsRepository.find({
-        select: { fecha_hora: true },
-        where: {
-          id_medico: query.doctorId,
-          estado: Not(ReservationState.CANCELADO),
-          fecha_hora: And(MoreThanOrEqual(dayStart), LessThan(dayEnd)),
-        },
-      });
-      const occupiedHours = occupied.map((reservation) =>
-        reservation.fecha_hora.getHours(),
-      );
-
-      const freeHours = APPOINTMENT_HOURS.filter((hour) => {
-        if (query.date === clock.date && hour <= clock.hour) return false;
-        return !occupiedHours.includes(hour);
-      });
-
-      const slots: AvailabilitySlotDto[] = [];
-      for (const hour of freeHours) {
-        const slot = new AvailabilitySlotDto();
-        slot.dateTime = `${query.date}T${String(hour).padStart(2, '0')}:00:00-03:00`;
-        slots.push(slot);
-      }
-
-      await Promise.all(slots.map((slot) => validateOrReject(slot)));
-      return slots;
-    } catch (error) {
-      if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(
-        'No se pudo obtener la disponibilidad de reservas.',
-      );
-    }
+    return item;
   }
 
   private assertCancellationTime(
