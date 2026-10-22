@@ -5,6 +5,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Post,
   Query,
   Req,
   UseGuards,
@@ -14,6 +15,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
+  ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiInternalServerErrorResponse,
   ApiNotFoundResponse,
@@ -29,6 +31,7 @@ import { UserRole } from '../../auth/enums/user-role.enum.js';
 import { AuthGuard } from '../../auth/guards/auth.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
 import type { AuthenticatedUser } from '../../auth/types/authenticated-user.js';
+import { CreateReservationDto } from '../dtos/input/create-reservation.dto.js';
 import { FindAgendaQueryDto } from '../dtos/input/find-agenda-query.dto.js';
 import { FindAvailabilityQueryDto } from '../dtos/input/find-availability-query.dto.js';
 import { FindReservationsQueryDto } from '../dtos/input/find-reservations-query.dto.js';
@@ -37,7 +40,6 @@ import { OutputAgendaItemDto } from '../dtos/output/agenda-item.dto.js';
 import { AvailabilitySlotDto } from '../dtos/output/availability-slot.dto.js';
 import { OutputReservationDto } from '../dtos/output/reservation.dto.js';
 import { ReservationsService } from '../services/reservations.service.js';
-import type { ReservationActor } from '../services/reservations.service.js';
 
 interface AuthenticatedRequest extends Request {
   usuario: AuthenticatedUser;
@@ -47,6 +49,49 @@ interface AuthenticatedRequest extends Request {
 @Controller('reservations')
 export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
+
+  @Post()
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.PACIENTE, UserRole.ADMINISTRADOR)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Crear una reserva',
+    description:
+      'El paciente reserva para sí mismo; el administrador debe indicar patientId. ' +
+      'Usar dateTime de la disponibilidad (Buenos Aires, -03:00). ' +
+      'Turnos futuros de una hora, de 08:00 a 15:00, hasta 30 días inclusive. ' +
+      'El servidor asigna ACTIVO y congela el precio actual del médico.',
+  })
+  @ApiCreatedResponse({
+    type: OutputReservationDto,
+    description: 'Reserva creada.',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Datos inválidos, horario fuera de rango o falta patientId para el administrador.',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token ausente, inválido o expirado.',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Rol no autorizado o paciente intentando reservar para otra persona.',
+  })
+  @ApiNotFoundResponse({
+    description: 'No se encontró un médico o paciente activo.',
+  })
+  @ApiConflictResponse({
+    description: 'El horario seleccionado ya está ocupado.',
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Error de persistencia o validación de salida.',
+  })
+  create(
+    @Body() input: CreateReservationDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<OutputReservationDto> {
+    return this.reservationsService.create(input, request.usuario);
+  }
 
   @Patch(':id/cancel')
   @UseGuards(AuthGuard, RolesGuard)
@@ -80,7 +125,7 @@ export class ReservationsController {
   })
   cancel(
     @Param('id', ParseIntPipe) id: number,
-    @Req() request: Request & { usuario: ReservationActor },
+    @Req() request: AuthenticatedRequest,
   ): Promise<OutputReservationDto> {
     return this.reservationsService.cancel(id, request.usuario);
   }
@@ -120,7 +165,7 @@ export class ReservationsController {
   })
   markAttendance(
     @Param('id', ParseIntPipe) id: number,
-    @Req() request: Request & { usuario: ReservationActor },
+    @Req() request: AuthenticatedRequest,
     @Body() input: UpdateReservationAttendanceDto,
   ): Promise<OutputReservationDto> {
     return this.reservationsService.markAttendance(id, request.usuario, input);
