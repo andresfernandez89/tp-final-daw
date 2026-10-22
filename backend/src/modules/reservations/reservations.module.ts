@@ -10,6 +10,5 @@ import { ReservationsService } from './services/reservations.service.js';
   imports: [AuthModule, DoctorsModule, TypeOrmModule.forFeature([Reservation])],
   controllers: [ReservationsController],
   providers: [ReservationsService],
-  exports: [],
 })
 export class ReservationsModule {}
