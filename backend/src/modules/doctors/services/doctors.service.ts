@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { plainToInstance } from 'class-transformer';
+import { validateOrReject } from 'class-validator';
 import type { Repository } from 'typeorm';
 import { UserRole } from '../../auth/enums/user-role.enum.js';
 import { UserState } from '../../auth/enums/user-state.enum.js';
@@ -59,6 +61,47 @@ export class DoctorsService {
     } catch {
       throw new InternalServerErrorException(
         'No se pudo obtener el listado de médicos.',
+      );
+    }
+  }
+
+  async updateValorConsulta(id: number, valorConsulta: number): Promise<DoctorListItemDto> {
+    try {
+      const doctor = await this.doctorsRepository.findOne({
+        where: { id },
+        relations: { usuario: true },
+      });
+
+      if (!doctor) {
+        throw new NotFoundException('No se encontró un médico.');
+      }
+
+      const item = plainToInstance(DoctorListItemDto, {
+        id: doctor.id,
+        nombres: doctor.usuario?.nombres ?? '',
+        apellidos: doctor.usuario?.apellidos ?? '',
+        matricula: doctor.matricula,
+        valor_consulta: valorConsulta,
+      });
+
+      await validateOrReject(item);
+
+      const result = await this.doctorsRepository.update(
+        { id },
+        { valor_consulta: valorConsulta },
+      );
+
+      if (result.affected === 0) {
+        throw new NotFoundException('No se encontró un médico.');
+      }
+
+      return item;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'No se pudo actualizar el valor de consulta.',
       );
     }
   }
