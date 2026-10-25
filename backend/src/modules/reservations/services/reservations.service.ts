@@ -19,8 +19,12 @@ import {
   type Repository,
 } from 'typeorm';
 import { UserRole } from '../../auth/enums/user-role.enum.js';
+import { UserState } from '../../auth/enums/user-state.enum.js';
+import { Doctor } from '../../doctors/entities/doctor.entity.js';
 import { DoctorsService } from '../../doctors/services/doctors.service.js';
+import { User } from '../../users/entities/user.entity.js';
 import { toReservationDto } from '../adapters/reservation.adapter.js';
+import { CreateReservationDto } from '../dtos/input/create-reservation.dto.js';
 import { FindAvailabilityQueryDto } from '../dtos/input/find-availability-query.dto.js';
 import { FindReservationsQueryDto } from '../dtos/input/find-reservations-query.dto.js';
 import { UpdateReservationAttendanceDto } from '../dtos/input/update-reservation-attendance.dto.js';
@@ -45,6 +49,102 @@ export class ReservationsService {
     private readonly reservationsRepository: Repository<Reservation>,
     private readonly doctorsService: DoctorsService,
   ) {}
+
+  async create(
+    input: CreateReservationDto,
+    actor: ReservationActor,
+  ): Promise<OutputReservationDto> {
+    if (![UserRole.PACIENTE, UserRole.ADMINISTRADOR].includes(actor.role)) {
+      throw new ForbiddenException(
+        'El rol no tiene permiso para crear reservas.',
+      );
+    }
+    if (
+      actor.role === UserRole.PACIENTE &&
+      input.patientId !== undefined &&
+      input.patientId !== actor.sub
+    ) {
+      throw new ForbiddenException(
+        'El paciente sólo puede reservar para sí mismo.',
+      );
+    }
+    const patientId =
+      actor.role === UserRole.PACIENTE ? actor.sub : input.patientId;
+    if (patientId === undefined) {
+      throw new BadRequestException(
+        'El administrador debe indicar el paciente.',
+      );
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      const doctor = await manager
+        .getRepository(Doctor)
+        .createQueryBuilder('medico')
+        .innerJoin('medico.usuario', 'usuario')
+        .where('medico.id = :id', { id: input.doctorId })
+        .andWhere('usuario.estado = :state', { state: UserState.ACTIVO })
+        .andWhere('usuario.rol = :role', { role: UserRole.MEDICO })
+        .setLock('pessimistic_write', undefined, ['medico'])
+        .getOne();
+      if (!doctor) {
+        throw new NotFoundException('No se encontró un médico activo.');
+      }
+      const patient = await manager.findOne(User, {
+        where: {
+          id: patientId,
+          rol: UserRole.PACIENTE,
+          estado: UserState.ACTIVO,
+        },
+      });
+      if (!patient) {
+        throw new NotFoundException('No se encontró un paciente activo.');
+      }
+
+      const date = input.dateTime.slice(0, 10);
+      const hour = Number(input.dateTime.slice(11, 13));
+      const clock = this.getClinicClock();
+      const start = new Date(input.dateTime);
+      if (
+        !APPOINTMENT_HOURS.includes(hour) ||
+        date < clock.date ||
+        date > this.addCalendarDays(clock.date, 30) ||
+        start.getTime() <= Date.now()
+      ) {
+        throw new BadRequestException(
+          'El turno debe ser futuro, dentro de los próximos 30 días y comenzar entre las 08:00 y las 15:00.',
+        );
+      }
+
+      const wallTime = new Date(input.dateTime.slice(0, 19));
+      const occupied = await manager.exists(Reservation, {
+        where: {
+          id_medico: doctor.id,
+          fecha_hora: wallTime,
+          estado: Not(ReservationState.CANCELADO),
+        },
+      });
+      if (occupied) {
+        throw new ConflictException('El horario seleccionado ya está ocupado.');
+      }
+
+      const reservation = manager.create(Reservation, {
+        id_medico: doctor.id,
+        id_paciente: patientId,
+        fecha_hora: wallTime,
+        estado: ReservationState.ACTIVO,
+        valor_consulta: doctor.valor_consulta,
+      });
+      await manager.save(reservation);
+      return toReservationDto({
+        id: reservation.id,
+        doctorId: reservation.id_medico,
+        patientId: reservation.id_paciente,
+        dateTime: start,
+        state: reservation.estado,
+        consultationFee: reservation.valor_consulta,
+      });
+    });
+  }
 
   async cancel(
     id: number,
