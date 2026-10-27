@@ -8,14 +8,20 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/login/login').then((m) => m.Login),
   },
   {
-    path: 'turnos',
+    path: '',
     canActivate: [authGuard],
-    loadComponent: () => import('./reservations/reservations').then((m) => m.Reservations),
-  },
-  {
-    path: 'medicos',
-    canActivate: [authGuard],
-    loadComponent: () => import('./doctors/doctors').then((m) => m.Doctors),
+    canActivateChild: [authGuard],
+    loadComponent: () => import('./template/layout').then((m) => m.Layout),
+    children: [
+      {
+        path: 'turnos',
+        loadComponent: () => import('./reservations/reservations').then((m) => m.Reservations),
+      },
+      {
+        path: 'medicos',
+        loadComponent: () => import('./doctors/doctors').then((m) => m.Doctors),
+      },
+    ],
   },
   {
     path: '**',
