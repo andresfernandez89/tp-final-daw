@@ -1,52 +1,86 @@
 import { Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
+import { catchError, finalize, forkJoin, of, switchMap } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
-import { Doctor, Reservation, ReservationsClient } from './reservations-client';
+import { Doctor, Patient, Reservation, ReservationsClient } from './reservations-client';
 
 @Component({
   selector: 'app-reservations',
-  imports: [TableModule],
+  imports: [FormsModule, ButtonModule, InputTextModule, SelectModule, TableModule],
   templateUrl: './reservations.html',
   styleUrl: './reservations.css',
 })
 export class Reservations {
   private readonly client = inject(ReservationsClient);
-  readonly esPaciente = inject(AuthStore).obtenerRol() === 'PACIENTE';
+  private readonly rol = inject(AuthStore).obtenerRol();
+  readonly esPaciente = this.rol === 'PACIENTE';
+  readonly esAdmin = this.rol === 'ADMINISTRADOR';
   readonly reservas = signal<Reservation[]>([]);
   readonly medicos = signal<Doctor[]>([]);
+  readonly pacientes = signal<Patient[]>([]);
+  documento = '';
+  estado = '';
+  readonly estados = [
+    { label: 'Todos los estados', value: '' },
+    { label: 'Activo', value: 'ACTIVO' },
+    { label: 'Atendido', value: 'ATENDIDO' },
+    { label: 'Ausente', value: 'AUSENTE' },
+    { label: 'Cancelado', value: 'CANCELADO' },
+  ];
   readonly cargando = signal(false);
   readonly error = signal('');
 
   constructor() {
-    if (this.esPaciente) this.cargarReservas();
+    if (this.esPaciente || this.esAdmin) this.cargarReservas();
   }
 
   cargarReservas(): void {
+    if (this.cargando()) return;
     this.cargando.set(true);
     this.error.set('');
-    this.client.obtenerMisReservas().subscribe({
-      next: (reservas) => {
-        this.reservas.set(reservas);
-        if (reservas.length === 0) {
-          this.cargando.set(false);
-          return;
-        }
-        this.client.obtenerMedicos().subscribe({
-          next: (medicos) => {
-            this.medicos.set(medicos);
-            this.cargando.set(false);
-          },
-          error: () => {
-            this.medicos.set([]);
-            this.cargando.set(false);
-          },
-        });
-      },
-      error: () => {
-        this.error.set('No se pudieron cargar las reservas.');
-        this.cargando.set(false);
-      },
-    });
+    const consulta = this.esAdmin
+      ? this.client.obtenerReservasAdmin(this.estado, this.documento)
+      : this.client.obtenerMisReservas();
+
+    consulta
+      .pipe(
+        switchMap((reservas) => this.cargarDatosDeLasPersonas(reservas)),
+        finalize(() => this.cargando.set(false)),
+      )
+      .subscribe({
+        next: ({ reservas, medicos, pacientes }) => {
+          this.reservas.set(reservas);
+          this.medicos.set(medicos);
+          this.pacientes.set(pacientes);
+        },
+        error: () => this.error.set('No se pudieron cargar las reservas.'),
+      });
+  }
+
+  private cargarDatosDeLasPersonas(reservas: Reservation[]) {
+    if (reservas.length === 0) {
+      return of({ reservas, medicos: [], pacientes: [] });
+    }
+
+    const medicos = this.client.obtenerMedicos().pipe(catchError(() => of([])));
+    const pacientes = this.esAdmin
+      ? this.client.obtenerPacientes().pipe(catchError(() => of([])))
+      : of([]);
+
+    return forkJoin({ reservas: of(reservas), medicos, pacientes });
+  }
+
+  nombrePaciente(id: number): string {
+    const paciente = this.pacientes().find((item) => item.id === id);
+    return paciente ? `${paciente.firstName} ${paciente.lastName}` : `Paciente #${id}`;
+  }
+
+  documentoPaciente(id: number): string {
+    return this.pacientes().find((paciente) => paciente.id === id)?.document ?? '—';
   }
 
   nombreMedico(id: number): string {

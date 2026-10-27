@@ -1,7 +1,27 @@
-@if (esPaciente) {
-  <h1>Mis reservas</h1>
+@if (esPaciente || esAdmin) {
+  <h1>{{ esAdmin ? 'Reservas' : 'Mis reservas' }}</h1>
   <section class="panel" aria-labelledby="listado-title">
     <div class="panel-head"><h2 id="listado-title">Listado</h2></div>
+    @if (esAdmin) {
+      <form class="filters" (ngSubmit)="cargarReservas()">
+        <div class="field">
+          <label for="documento">Documento del paciente</label>
+          <input pInputText id="documento" name="document" placeholder="Busque por documento" [(ngModel)]="documento" />
+        </div>
+        <div class="field">
+          <label for="estado">Estado</label>
+          <p-select
+            inputId="estado"
+            name="state"
+            [(ngModel)]="estado"
+            [options]="estados"
+            optionLabel="label"
+            optionValue="value"
+          />
+        </div>
+        <button pButton type="submit" [disabled]="cargando()">Buscar</button>
+      </form>
+    }
     @if (cargando()) {
       <p class="message" role="status">Cargando reservas...</p>
     } @else if (error()) {
@@ -15,6 +35,10 @@
         <p-table [value]="reservas()" dataKey="id" [tableStyle]="{ 'min-width': '590px' }">
           <ng-template #header>
             <tr>
+              @if (esAdmin) {
+                <th>Documento</th>
+                <th>Paciente</th>
+              }
               <th>Fecha</th>
               <th>Hora</th>
               <th>Médico</th>
@@ -24,6 +48,10 @@
           </ng-template>
           <ng-template #body let-reserva>
             <tr>
+              @if (esAdmin) {
+                <td>{{ documentoPaciente(reserva.patientId) }}</td>
+                <td>{{ nombrePaciente(reserva.patientId) }}</td>
+              }
               <td>{{ fecha(reserva.dateTime) }}</td>
               <td>{{ hora(reserva.dateTime) }}</td>
               <td>{{ nombreMedico(reserva.doctorId) }}</td>

@@ -17,6 +17,35 @@ h2 {
   margin: 0;
   font-size: 16px;
 }
+.filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 19px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+.field input,
+.field p-select {
+  min-height: 40px;
+  --p-inputtext-background: #fff;
+  --p-inputtext-color: #1e293b;
+  --p-inputtext-border-color: #cbd5e1;
+  --p-select-background: #fff;
+  --p-select-color: #1e293b;
+  --p-select-border-color: #cbd5e1;
+  --p-select-dropdown-color: #64748b;
+}
 .table-wrap {
   overflow-x: auto;
 }
