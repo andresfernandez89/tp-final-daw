@@ -1,0 +1,42 @@
+@if (esPaciente) {
+  <h1>Mis reservas</h1>
+  <section class="panel" aria-labelledby="listado-title">
+    <div class="panel-head"><h2 id="listado-title">Listado</h2></div>
+    @if (cargando()) {
+      <p class="message" role="status">Cargando reservas...</p>
+    } @else if (error()) {
+      <div class="message" role="alert">
+        <p>{{ error() }}</p>
+      </div>
+    } @else if (reservas().length === 0) {
+      <p class="message">No hay reservas para mostrar.</p>
+    } @else {
+      <div class="table-wrap">
+        <p-table [value]="reservas()" dataKey="id" [tableStyle]="{ 'min-width': '590px' }">
+          <ng-template #header>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Médico</th>
+              <th>Valor reservado</th>
+              <th>Estado</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-reserva>
+            <tr>
+              <td>{{ fecha(reserva.dateTime) }}</td>
+              <td>{{ hora(reserva.dateTime) }}</td>
+              <td>{{ nombreMedico(reserva.doctorId) }}</td>
+              <td>{{ valor(reserva.consultationFee) }}</td>
+              <td>
+                <span class="status" [class]="'status ' + reserva.state">{{ reserva.state }}</span>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    }
+  </section>
+} @else {
+  <h1>Turnos</h1>
+}

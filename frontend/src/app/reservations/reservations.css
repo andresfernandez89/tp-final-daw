@@ -1,0 +1,89 @@
+h1 {
+  margin: 0 0 22px;
+  font-size: 25px;
+  letter-spacing: -0.03em;
+}
+.panel {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.panel-head {
+  padding: 17px 19px;
+  border-bottom: 1px solid #e2e8f0;
+}
+h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+p-table {
+  --p-datatable-header-cell-background: #f8fafc;
+  --p-datatable-header-cell-color: #64748b;
+  --p-datatable-header-cell-border-color: #e2e8f0;
+  --p-datatable-row-background: #fff;
+  --p-datatable-row-color: #253246;
+  --p-datatable-body-cell-border-color: #eef2f6;
+}
+table {
+  width: 100%;
+  min-width: 590px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+th {
+  padding: 12px 17px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+}
+td {
+  padding: 13px 17px;
+  border-bottom: 1px solid #eef2f6;
+}
+tr:last-child td {
+  border-bottom: 0;
+}
+.status {
+  color: #475569;
+  font-weight: 600;
+}
+.status.ACTIVO {
+  color: #176648;
+}
+.status.CANCELADO {
+  color: #a92739;
+}
+.status.ATENDIDO {
+  color: #315f9c;
+}
+.status.AUSENTE {
+  color: #a66a12;
+}
+.message {
+  padding: 28px 20px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+}
+.message p {
+  margin: 0 0 12px;
+}
+button {
+  padding: 8px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  cursor: pointer;
+}
+button:focus-visible {
+  outline: 3px solid #a5b4fc;
+  outline-offset: 2px;
+}
