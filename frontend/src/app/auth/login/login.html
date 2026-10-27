@@ -1,0 +1,29 @@
+<main class="login-wrap">
+  <section class="login-panel" aria-labelledby="login-title">
+    <div class="heading">
+      <h1 id="login-title">Clínica médica</h1>
+      <p class="subtle">Iniciar sesión</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="iniciarSesion()" [attr.aria-busy]="busy()">
+      <div class="field">
+        <label for="documento">Documento</label>
+        <input pInputText id="documento" name="documento" type="text" inputmode="numeric"
+          formControlName="documento" autocomplete="username" required />
+      </div>
+
+      <div class="field">
+        <label for="clave">Contraseña</label>
+        <input pInputText id="clave" name="clave" type="password"
+          formControlName="clave" autocomplete="current-password" required />
+      </div>
+
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+      <button pButton class="btn primary full" type="submit" [disabled]="busy()">
+        {{ busy() ? 'Ingresando…' : 'Ingresar' }}
+      </button>
+    </form>
+  </section>
+</main>

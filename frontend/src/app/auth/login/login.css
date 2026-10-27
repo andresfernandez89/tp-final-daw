@@ -1,0 +1,128 @@
+:host {
+  display: block;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #253246;
+  background: #f6f7f9;
+  line-height: 1.45;
+}
+
+:host *,
+:host *::before,
+:host *::after {
+  box-sizing: border-box;
+}
+
+.login-wrap {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.login-panel {
+  width: min(100%, 400px);
+  padding: 30px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px #25324608;
+}
+
+.heading {
+  margin-bottom: 23px;
+}
+
+h1 {
+  margin: 0 0 5px;
+  font-size: 26px;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+
+.subtle {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+form {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  font: inherit;
+  color: #1e293b;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+}
+
+.btn {
+  min-height: 37px;
+  padding: 8px 13px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: inherit;
+  border: 1px solid #315f9c;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.btn.primary {
+  color: #fff;
+  background: #315f9c;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: #244d81;
+  border-color: #244d81;
+}
+
+.full {
+  width: 100%;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.btn:focus-visible,
+.field input:focus-visible {
+  outline: 3px solid #a5b4fc;
+  outline-offset: 2px;
+}
+
+.error {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #a92739;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 7px;
+}
+
+@media (max-width: 680px) {
+  .login-panel {
+    padding: 22px;
+  }
+}
