@@ -1,3 +1,4 @@
+<p-toast styleClass="reservation-toast" />
 @if (esPaciente || esAdmin || esMedico) {
   <h1>{{ esMedico ? 'Mis turnos' : esAdmin ? 'Reservas' : 'Mis reservas' }}</h1>
   <section class="panel" aria-labelledby="listado-title">
@@ -44,7 +45,7 @@
             optionValue="value"
           />
         </div>
-        <button pButton type="submit" [disabled]="cargando()">Buscar</button>
+        <button pButton type="submit" [disabled]="cargando() || cancelando()">Buscar</button>
       </form>
     }
     @if (esMedico && !fechaAgenda) {
@@ -81,6 +82,9 @@
                 <th>Valor reservado</th>
               }
               <th>Estado</th>
+              @if (!esMedico) {
+                <th>Acciones</th>
+              }
             </tr>
           </ng-template>
           <ng-template #body let-reserva>
@@ -103,12 +107,65 @@
               <td>
                 <span class="status" [class]="'status ' + reserva.state">{{ reserva.state }}</span>
               </td>
+              @if (!esMedico) {
+                <td>
+                  @if (reserva.state === 'ACTIVO') {
+                    <span
+                      [pTooltip]="!puedeCancelar(reserva) ? 'El plazo para cancelar venció.' : ''"
+                      tooltipPosition="top"
+                      tooltipStyleClass="cancel-tooltip"
+                      [attr.tabindex]="!puedeCancelar(reserva) ? 0 : null"
+                      [attr.aria-label]="
+                        !puedeCancelar(reserva) ? 'El plazo para cancelar venció.' : null
+                      "
+                    >
+                      <button
+                        pButton
+                        type="button"
+                        [disabled]="cancelando() || !puedeCancelar(reserva)"
+                        (click)="solicitarCancelacion(reserva)"
+                      >
+                        Cancelar reserva
+                      </button>
+                    </span>
+                  }
+                </td>
+              }
             </tr>
           </ng-template>
         </p-table>
       </div>
     }
   </section>
+  <p-dialog
+    header="Confirmar cancelación"
+    [modal]="true"
+    [(visible)]="mostrarConfirmacion"
+    [closable]="!cancelando()"
+    [style]="{ width: '25rem', maxWidth: '95vw' }"
+  >
+    <p>¿Deseas cancelar esta reserva?</p>
+    <div class="dialog-actions">
+      <button
+        pButton
+        severity="danger"
+        type="button"
+        [disabled]="cancelando()"
+        (click)="mostrarConfirmacion = false"
+      >
+        Cancelar
+      </button>
+      <button
+        pButton
+        severity="success"
+        type="button"
+        [disabled]="cancelando()"
+        (click)="cancelarReserva()"
+      >
+        Confirmar
+      </button>
+    </div>
+  </p-dialog>
 } @else {
   <h1>Turnos</h1>
 }

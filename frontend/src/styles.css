@@ -1,3 +1,17 @@
 body {
   margin: 0;
 }
+
+.cancel-tooltip {
+  --p-tooltip-background: #1e293b;
+  --p-tooltip-color: #fff;
+}
+
+.cancel-tooltip .p-tooltip-text {
+  background: #1e293b;
+  color: #fff;
+}
+
+.reservation-toast .p-toast-message-success .p-toast-detail {
+  color: #1e293b;
+}
