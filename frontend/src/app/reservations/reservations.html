@@ -1,0 +1,114 @@
+@if (esPaciente || esAdmin || esMedico) {
+  <h1>{{ esMedico ? 'Mis turnos' : esAdmin ? 'Reservas' : 'Mis reservas' }}</h1>
+  <section class="panel" aria-labelledby="listado-title">
+    <div class="panel-head">
+      <h2 id="listado-title">{{ esMedico ? 'Agenda' : 'Listado' }}</h2>
+    </div>
+    @if (esMedico) {
+      <div class="filters">
+        <div class="field">
+          <label for="fecha-agenda">Fecha (obligatoria)</label>
+          <input
+            #fechaInput
+            pInputText
+            id="fecha-agenda"
+            name="date"
+            type="date"
+            [(ngModel)]="fechaAgenda"
+            (ngModelChange)="cargarAgenda()"
+            (click)="abrirCalendario(fechaInput)"
+          />
+        </div>
+      </div>
+    }
+    @if (esAdmin) {
+      <form class="filters" (ngSubmit)="cargarReservas()">
+        <div class="field">
+          <label for="documento">Documento del paciente</label>
+          <input
+            pInputText
+            id="documento"
+            name="document"
+            placeholder="Busque por documento"
+            [(ngModel)]="documento"
+          />
+        </div>
+        <div class="field">
+          <label for="estado">Estado</label>
+          <p-select
+            inputId="estado"
+            name="state"
+            [(ngModel)]="estado"
+            [options]="estados"
+            optionLabel="label"
+            optionValue="value"
+          />
+        </div>
+        <button pButton type="submit" [disabled]="cargando()">Buscar</button>
+      </form>
+    }
+    @if (esMedico && !fechaAgenda) {
+      <p class="message">Selecciona una fecha para consultar tus turnos.</p>
+    } @else if (cargando()) {
+      <p class="message" role="status">Cargando reservas...</p>
+    } @else if (error()) {
+      <div class="message" role="alert">
+        <p>{{ error() }}</p>
+      </div>
+    } @else if (esMedico ? agenda().length === 0 : reservas().length === 0) {
+      <p class="message">
+        {{ esMedico ? 'No hay turnos para esta fecha.' : 'No hay reservas para mostrar.' }}
+      </p>
+    } @else {
+      <div class="table-wrap">
+        <p-table
+          [value]="esMedico ? agenda() : reservas()"
+          dataKey="id"
+          [tableStyle]="{ 'min-width': '590px' }"
+        >
+          <ng-template #header>
+            <tr>
+              @if (esAdmin || esMedico) {
+                <th>Documento</th>
+                <th>Paciente</th>
+              }
+              @if (!esMedico) {
+                <th>Fecha</th>
+              }
+              <th>Hora</th>
+              @if (!esMedico) {
+                <th>Médico</th>
+                <th>Valor reservado</th>
+              }
+              <th>Estado</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-reserva>
+            <tr>
+              @if (esMedico) {
+                <td>{{ reserva.patientDocument }}</td>
+                <td>{{ reserva.patientFirstName }} {{ reserva.patientLastName }}</td>
+              } @else if (esAdmin) {
+                <td>{{ documentoPaciente(reserva.patientId) }}</td>
+                <td>{{ nombrePaciente(reserva.patientId) }}</td>
+              }
+              @if (!esMedico) {
+                <td>{{ fecha(reserva.dateTime) }}</td>
+              }
+              <td>{{ hora(reserva.dateTime) }}</td>
+              @if (!esMedico) {
+                <td>{{ nombreMedico(reserva.doctorId) }}</td>
+                <td>{{ valor(reserva.consultationFee) }}</td>
+              }
+              <td>
+                <span class="status" [class]="'status ' + reserva.state">{{ reserva.state }}</span>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    }
+  </section>
+} @else {
+  <h1>Turnos</h1>
+}
