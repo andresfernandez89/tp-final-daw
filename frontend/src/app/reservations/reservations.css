@@ -30,6 +30,10 @@ h2 {
   flex-direction: column;
   gap: 6px;
 }
+#fecha-agenda {
+  width: 150px;
+  cursor: pointer;
+}
 .field label {
   color: #334155;
   font-size: 13px;

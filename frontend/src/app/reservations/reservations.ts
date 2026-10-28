@@ -1,12 +1,18 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
-import { catchError, finalize, forkJoin, of, switchMap } from 'rxjs';
+import { catchError, finalize, forkJoin, of, Subscription, switchMap } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
-import { Doctor, Patient, Reservation, ReservationsClient } from './reservations-client';
+import {
+  AgendaItem,
+  Doctor,
+  Patient,
+  Reservation,
+  ReservationsClient,
+} from './reservations-client';
 
 @Component({
   selector: 'app-reservations',
@@ -14,11 +20,15 @@ import { Doctor, Patient, Reservation, ReservationsClient } from './reservations
   templateUrl: './reservations.html',
   styleUrl: './reservations.css',
 })
-export class Reservations {
+export class Reservations implements OnDestroy {
   private readonly client = inject(ReservationsClient);
   private readonly rol = inject(AuthStore).obtenerRol();
   readonly esPaciente = this.rol === 'PACIENTE';
   readonly esAdmin = this.rol === 'ADMINISTRADOR';
+  readonly esMedico = this.rol === 'MEDICO';
+  readonly agenda = signal<AgendaItem[]>([]);
+  fechaAgenda = '';
+  private consultaAgenda?: Subscription;
   readonly reservas = signal<Reservation[]>([]);
   readonly medicos = signal<Doctor[]>([]);
   readonly pacientes = signal<Patient[]>([]);
@@ -36,6 +46,36 @@ export class Reservations {
 
   constructor() {
     if (this.esPaciente || this.esAdmin) this.cargarReservas();
+  }
+
+  ngOnDestroy(): void {
+    this.consultaAgenda?.unsubscribe();
+  }
+
+  abrirCalendario(input: HTMLInputElement): void {
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+      } catch {
+        input.focus();
+      }
+    }
+  }
+
+  cargarAgenda(): void {
+    this.consultaAgenda?.unsubscribe();
+    this.agenda.set([]);
+    this.error.set('');
+    if (!this.fechaAgenda) return;
+
+    this.cargando.set(true);
+    this.consultaAgenda = this.client
+      .obtenerAgenda(this.fechaAgenda)
+      .pipe(finalize(() => this.cargando.set(false)))
+      .subscribe({
+        next: (agenda) => this.agenda.set(agenda),
+        error: () => this.error.set('No se pudieron cargar los turnos.'),
+      });
   }
 
   cargarReservas(): void {

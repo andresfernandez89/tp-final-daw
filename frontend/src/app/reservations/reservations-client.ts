@@ -11,6 +11,17 @@ export interface Reservation {
   consultationFee: number;
 }
 
+export interface AgendaItem {
+  id: number;
+  dateTime: string;
+  state: Reservation['state'];
+  patientId: number;
+  patientDocument: string;
+  patientFirstName: string;
+  patientLastName: string;
+  consultationFee: number;
+}
+
 export interface Doctor {
   id: number;
   nombres: string;
@@ -37,6 +48,12 @@ export class ReservationsClient {
     if (state) params = params.set('state', state);
     if (document.trim()) params = params.set('document', document.trim());
     return this.http.get<Reservation[]>(`${API_BASE_URL}/reservations/admin`, { params });
+  }
+
+  obtenerAgenda(date: string) {
+    return this.http.get<AgendaItem[]>(`${API_BASE_URL}/reservations/agenda`, {
+      params: new HttpParams().set('date', date),
+    });
   }
 
   obtenerPacientes() {
