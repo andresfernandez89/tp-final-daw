@@ -50,6 +50,10 @@ export class ReservationsClient {
     return this.http.get<Reservation[]>(`${API_BASE_URL}/reservations/admin`, { params });
   }
 
+  cancelarReserva(id: number) {
+    return this.http.patch<Reservation>(`${API_BASE_URL}/reservations/${id}/cancel`, {});
+  }
+
   obtenerAgenda(date: string) {
     return this.http.get<AgendaItem[]>(`${API_BASE_URL}/reservations/agenda`, {
       params: new HttpParams().set('date', date),

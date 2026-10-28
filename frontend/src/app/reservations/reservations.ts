@@ -1,9 +1,13 @@
 import { Component, inject, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
+import { ToastModule } from 'primeng/toast';
+import { TooltipModule } from 'primeng/tooltip';
 import { catchError, finalize, forkJoin, of, Subscription, switchMap } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import {
@@ -16,12 +20,25 @@ import {
 
 @Component({
   selector: 'app-reservations',
-  imports: [FormsModule, ButtonModule, InputTextModule, SelectModule, TableModule],
+  imports: [
+    FormsModule,
+    ButtonModule,
+    DialogModule,
+    InputTextModule,
+    SelectModule,
+    TableModule,
+    ToastModule,
+    TooltipModule,
+  ],
+  providers: [MessageService],
   templateUrl: './reservations.html',
   styleUrl: './reservations.css',
 })
 export class Reservations implements OnDestroy {
   private readonly client = inject(ReservationsClient);
+  private readonly mensajes = inject(MessageService);
+  private readonly ahora = signal(Date.now());
+  private reloj?: ReturnType<typeof setInterval>;
   private readonly rol = inject(AuthStore).obtenerRol();
   readonly esPaciente = this.rol === 'PACIENTE';
   readonly esAdmin = this.rol === 'ADMINISTRADOR';
@@ -43,13 +60,20 @@ export class Reservations implements OnDestroy {
   ];
   readonly cargando = signal(false);
   readonly error = signal('');
+  readonly cancelando = signal(false);
+  mostrarConfirmacion = false;
+  reservaSeleccionada?: Reservation;
 
   constructor() {
-    if (this.esPaciente || this.esAdmin) this.cargarReservas();
+    if (this.esPaciente || this.esAdmin) {
+      this.cargarReservas();
+      this.reloj = setInterval(() => this.ahora.set(Date.now()), 1000);
+    }
   }
 
   ngOnDestroy(): void {
     this.consultaAgenda?.unsubscribe();
+    clearInterval(this.reloj);
   }
 
   abrirCalendario(input: HTMLInputElement): void {
@@ -98,6 +122,70 @@ export class Reservations implements OnDestroy {
           this.pacientes.set(pacientes);
         },
         error: () => this.error.set('No se pudieron cargar las reservas.'),
+      });
+  }
+
+  puedeCancelar(reserva: Reservation): boolean {
+    if (reserva.state !== 'ACTIVO' || (!this.esPaciente && !this.esAdmin)) return false;
+    const inicio = new Date(reserva.dateTime);
+    if (Number.isNaN(inicio.getTime())) return false;
+    const ahora = new Date(this.ahora());
+    if (this.esAdmin) return ahora.getTime() < inicio.getTime();
+
+    const fechaArgentina = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return fechaArgentina.format(ahora) < fechaArgentina.format(inicio);
+  }
+
+  solicitarCancelacion(reserva: Reservation): void {
+    this.ahora.set(Date.now());
+    if (!this.puedeCancelar(reserva)) return;
+    this.reservaSeleccionada = reserva;
+    this.mostrarConfirmacion = true;
+  }
+
+  cancelarReserva(): void {
+    if (!this.reservaSeleccionada || this.cancelando()) return;
+    this.ahora.set(Date.now());
+    if (!this.puedeCancelar(this.reservaSeleccionada)) {
+      this.mostrarConfirmacion = false;
+      this.mensajes.add({
+        severity: 'error',
+        summary: 'Cancelación',
+        detail: 'El plazo para cancelar venció.',
+      });
+      return;
+    }
+
+    this.cancelando.set(true);
+    this.client
+      .cancelarReserva(this.reservaSeleccionada.id)
+      .pipe(finalize(() => this.cancelando.set(false)))
+      .subscribe({
+        next: (reserva) => {
+          this.reservas.update((reservas) =>
+            reservas.map((item) => (item.id === reserva.id ? reserva : item)),
+          );
+          this.mostrarConfirmacion = false;
+          this.mensajes.add({
+            severity: 'success',
+            summary: 'Cancelación',
+            detail: 'La reserva se canceló correctamente.',
+          });
+          this.cargarReservas();
+        },
+        error: () => {
+          this.mostrarConfirmacion = false;
+          this.mensajes.add({
+            severity: 'error',
+            summary: 'Cancelación',
+            detail: 'No se pudo cancelar la reserva.',
+          });
+        },
       });
   }
 
