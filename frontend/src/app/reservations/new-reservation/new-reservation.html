@@ -1,0 +1,74 @@
+<p-toast styleClass="reservation-toast" />
+@if (esPaciente) {
+  <h1>Reservar turno</h1>
+  <section class="panel">
+    <form (ngSubmit)="confirmar()">
+      <div class="grid">
+        <div class="field">
+          <label for="medico">Médico</label>
+          <p-select
+            inputId="medico"
+            name="medico"
+            [(ngModel)]="medicoId"
+            (ngModelChange)="cargarHorarios()"
+            [options]="opcionesMedicos()"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Seleccionar médico"
+            [disabled]="cargandoMedicos() || enviando()"
+          />
+        </div>
+        <div class="field">
+          <label for="fecha">Fecha</label>
+          <input
+            pInputText
+            id="fecha"
+            name="fecha"
+            type="date"
+            [(ngModel)]="fecha"
+            (ngModelChange)="cargarHorarios()"
+            [min]="fechaMinima"
+            [max]="fechaMaxima"
+            [disabled]="enviando()"
+          />
+        </div>
+        <div class="field">
+          <label for="horario">Horario disponible</label>
+          <p-select
+            inputId="horario"
+            name="horario"
+            [(ngModel)]="horario"
+            [options]="opcionesHorarios()"
+            optionLabel="label"
+            optionValue="value"
+            [disabled]="!horarios().length || cargandoHorarios() || enviando()"
+            [placeholder]="
+              !medicoId
+                ? 'Primero selecciona un médico'
+                : cargandoHorarios()
+                  ? 'Cargando horarios...'
+                  : !horarios().length
+                    ? 'Sin horarios disponibles'
+                    : 'Seleccionar horario'
+            "
+          />
+        </div>
+        <div class="price">
+          <span>Valor de la consulta</span><strong>{{ valorConsulta() }}</strong>
+        </div>
+      </div>
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+      <div class="actions">
+        <a routerLink="/turnos">Volver a mis reservas</a>
+        <button pButton type="submit" [disabled]="!horario || cargandoHorarios() || enviando()">
+          Confirmar reserva
+        </button>
+      </div>
+    </form>
+  </section>
+} @else {
+  <h1>Reservar turno</h1>
+  <p>Esta pantalla está disponible para pacientes.</p>
+}
