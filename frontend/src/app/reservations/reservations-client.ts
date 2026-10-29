@@ -26,6 +26,7 @@ export interface Doctor {
   id: number;
   nombres: string;
   apellidos: string;
+  valor_consulta: number;
 }
 
 export interface Patient {

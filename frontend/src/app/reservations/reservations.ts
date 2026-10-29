@@ -10,6 +10,7 @@ import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { catchError, finalize, forkJoin, of, Subscription, switchMap } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
+import { formatearValor } from '../shared/formatters';
 import {
   AgendaItem,
   Doctor,
@@ -235,10 +236,6 @@ export class Reservations implements OnDestroy {
   }
 
   valor(amount: number): string {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-      maximumFractionDigits: 0,
-    }).format(amount);
+    return formatearValor(amount);
   }
 }

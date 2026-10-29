@@ -1,0 +1,67 @@
+h1 {
+  margin: 0 0 22px;
+  font-size: 25px;
+  letter-spacing: -0.03em;
+}
+.panel {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+p-table {
+  --p-datatable-header-cell-background: #f8fafc;
+  --p-datatable-header-cell-color: #64748b;
+  --p-datatable-header-cell-border-color: #e2e8f0;
+  --p-datatable-row-background: #fff;
+  --p-datatable-row-color: #253246;
+  --p-datatable-body-cell-border-color: #eef2f6;
+}
+th {
+  font-size: 12px;
+}
+td {
+  font-size: 13px;
+}
+.message {
+  margin: 0;
+  padding: 28px 20px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+}
+.edit-form {
+  display: grid;
+  gap: 16px;
+}
+.subtle {
+  margin: 0;
+  color: #64748b;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+.error {
+  margin: 0;
+  padding: 10px 12px;
+  color: #a92739;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 7px;
+  font-size: 13px;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
