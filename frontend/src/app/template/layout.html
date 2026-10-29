@@ -3,7 +3,9 @@
     <span class="brand">Clínica médica</span>
     <div class="session">
       @if (usuario) {
-        <span><strong>{{ usuario.email }}</strong> · {{ usuario.role }}</span>
+        <span
+          ><strong>{{ usuario.email }}</strong> · {{ usuario.role }}</span
+        >
       }
       <button type="button" class="logout" (click)="cerrarSesion()">Cerrar sesión</button>
     </div>
@@ -15,6 +17,11 @@
     <a routerLink="/turnos" routerLinkActive="selected" ariaCurrentWhenActive="page">
       {{ usuario?.role === 'MEDICO' ? 'Mis turnos' : 'Reservas' }}
     </a>
+    @if (usuario?.role === 'PACIENTE') {
+      <a routerLink="/reservar-turno" routerLinkActive="selected" ariaCurrentWhenActive="page"
+        >Reservar turno</a
+      >
+    }
     @if (usuario?.role === 'ADMINISTRADOR') {
       <a routerLink="/medicos" routerLinkActive="selected" ariaCurrentWhenActive="page">Médicos</a>
     }
