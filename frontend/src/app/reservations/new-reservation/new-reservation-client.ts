@@ -9,6 +9,13 @@ export interface Medico {
   valor_consulta: number;
 }
 
+export interface Paciente {
+  id: number;
+  document: string;
+  firstName: string;
+  lastName: string;
+}
+
 export interface HorarioDisponible {
   dateTime: string;
 }
@@ -21,6 +28,10 @@ export class NewReservationClient {
     return this.http.get<Medico[]>(`${API_BASE_URL}/doctors`);
   }
 
+  obtenerPacientes() {
+    return this.http.get<Paciente[]>(`${API_BASE_URL}/patients`);
+  }
+
   obtenerHorarios(doctorId: number, fecha: string) {
     const params = new HttpParams().set('doctorId', doctorId).set('date', fecha);
     return this.http.get<HorarioDisponible[]>(`${API_BASE_URL}/reservations/availability`, {
@@ -28,7 +39,8 @@ export class NewReservationClient {
     });
   }
 
-  crearReserva(doctorId: number, dateTime: string) {
-    return this.http.post(`${API_BASE_URL}/reservations`, { doctorId, dateTime });
+  crearReserva(doctorId: number, dateTime: string, patientId?: number) {
+    const reserva = patientId === undefined ? { doctorId, dateTime } : { doctorId, dateTime, patientId };
+    return this.http.post(`${API_BASE_URL}/reservations`, reserva);
   }
 }

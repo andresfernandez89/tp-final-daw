@@ -1,9 +1,17 @@
 <p-toast styleClass="reservation-toast" />
-@if (esPaciente) {
+@if (esPaciente || esAdmin) {
   <h1>Reservar turno</h1>
   <section class="panel">
     <form (ngSubmit)="confirmar()">
       <div class="grid">
+        @if (esAdmin) {
+          <div class="field">
+            <label for="paciente">Paciente</label>
+            <p-select inputId="paciente" name="paciente" [(ngModel)]="pacienteId"
+              [options]="opcionesPacientes()" optionLabel="label" optionValue="value"
+              placeholder="Seleccionar paciente" [disabled]="cargandoPacientes() || enviando()" />
+          </div>
+        }
         <div class="field">
           <label for="medico">Médico</label>
           <p-select
@@ -57,12 +65,15 @@
           <span>Valor de la consulta</span><strong>{{ valorConsulta() }}</strong>
         </div>
       </div>
+      @if (errorPacientes()) {
+        <p class="error" role="alert">{{ errorPacientes() }}</p>
+      }
       @if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
       }
       <div class="actions">
-        <a routerLink="/turnos">Volver a mis reservas</a>
-        <button pButton type="submit" [disabled]="!horario || cargandoHorarios() || enviando()">
+        <a routerLink="/turnos">{{ esAdmin ? 'Volver a reservas' : 'Volver a mis reservas' }}</a>
+        <button pButton type="submit" [disabled]="!horario || (esAdmin && !pacienteId) || cargandoHorarios() || enviando()">
           Confirmar reserva
         </button>
       </div>
@@ -70,5 +81,5 @@
   </section>
 } @else {
   <h1>Reservar turno</h1>
-  <p>Esta pantalla está disponible para pacientes.</p>
+  <p>Esta pantalla está disponible para pacientes y administradores.</p>
 }

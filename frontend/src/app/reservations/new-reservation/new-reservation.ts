@@ -9,7 +9,7 @@ import { SelectModule } from 'primeng/select';
 import { ToastModule } from 'primeng/toast';
 import { finalize, Subscription } from 'rxjs';
 import { AuthStore } from '../../auth/auth-store';
-import { HorarioDisponible, Medico, NewReservationClient } from './new-reservation-client';
+import { HorarioDisponible, Medico, NewReservationClient, Paciente } from './new-reservation-client';
 
 @Component({
   selector: 'app-new-reservation',
@@ -22,7 +22,13 @@ export class NewReservation implements OnDestroy {
   private readonly client = inject(NewReservationClient);
   private readonly mensajes = inject(MessageService);
   private consultaHorarios?: Subscription;
-  readonly esPaciente = inject(AuthStore).obtenerRol() === 'PACIENTE';
+  private readonly rol = inject(AuthStore).obtenerRol();
+  readonly esPaciente = this.rol === 'PACIENTE';
+  readonly esAdmin = this.rol === 'ADMINISTRADOR';
+  readonly pacientes = signal<Paciente[]>([]);
+  readonly cargandoPacientes = signal(false);
+  readonly errorPacientes = signal('');
+  pacienteId: number | null = null;
   readonly medicos = signal<Medico[]>([]);
   readonly horarios = signal<HorarioDisponible[]>([]);
   readonly cargandoMedicos = signal(false);
@@ -36,7 +42,16 @@ export class NewReservation implements OnDestroy {
   fecha = this.sumarDias(this.fechaMinima, 1);
 
   constructor() {
-    if (!this.esPaciente) return;
+    if (!this.esPaciente && !this.esAdmin) return;
+    if (this.esAdmin) {
+      this.cargandoPacientes.set(true);
+      this.client.obtenerPacientes()
+        .pipe(finalize(() => this.cargandoPacientes.set(false)))
+        .subscribe({
+          next: (pacientes) => this.pacientes.set(pacientes),
+          error: () => this.errorPacientes.set('No se pudieron cargar los pacientes.'),
+        });
+    }
     this.cargandoMedicos.set(true);
     this.client
       .obtenerMedicos()
@@ -76,7 +91,8 @@ export class NewReservation implements OnDestroy {
 
   confirmar(): void {
     if (
-      !this.esPaciente ||
+      (!this.esPaciente && !this.esAdmin) ||
+      (this.esAdmin && !this.pacientes().some((paciente) => paciente.id === this.pacienteId)) ||
       this.enviando() ||
       !this.medicoId ||
       !this.horarios().some((item) => item.dateTime === this.horario)
@@ -85,7 +101,7 @@ export class NewReservation implements OnDestroy {
     this.enviando.set(true);
     this.error.set('');
     this.client
-      .crearReserva(this.medicoId, this.horario)
+      .crearReserva(this.medicoId, this.horario, this.esAdmin ? this.pacienteId! : undefined)
       .pipe(finalize(() => this.enviando.set(false)))
       .subscribe({
         next: () => {
@@ -105,6 +121,13 @@ export class NewReservation implements OnDestroy {
           }
         },
       });
+  }
+
+  opcionesPacientes() {
+    return this.pacientes().map((paciente) => ({
+      label: `${paciente.firstName} ${paciente.lastName} · ${paciente.document}`,
+      value: paciente.id,
+    }));
   }
 
   opcionesMedicos() {
