@@ -82,9 +82,7 @@
                 <th>Valor reservado</th>
               }
               <th>Estado</th>
-              @if (!esMedico) {
-                <th>Acciones</th>
-              }
+              <th>Acciones</th>
             </tr>
           </ng-template>
           <ng-template #body let-reserva>
@@ -107,7 +105,46 @@
               <td>
                 <span class="status" [class]="'status ' + reserva.state">{{ reserva.state }}</span>
               </td>
-              @if (!esMedico) {
+              @if (esMedico) {
+                <td>
+                  @if (reserva.state !== 'CANCELADO') {
+                    <span
+                      class="actions"
+                      [pTooltip]="
+                        !yaEmpezo(reserva) ? 'Disponible desde el inicio de la consulta.' : ''
+                      "
+                      tooltipPosition="top"
+                      tooltipStyleClass="cancel-tooltip"
+                      [attr.tabindex]="!yaEmpezo(reserva) ? 0 : null"
+                      [attr.aria-label]="
+                        !yaEmpezo(reserva) ? 'Disponible desde el inicio de la consulta.' : null
+                      "
+                    >
+                      <button
+                        type="button"
+                        class="mark-trigger"
+                        [class.open]="reservaEnMenu?.id === reserva.id && menuAbierto"
+                        [disabled]="marcando() || !yaEmpezo(reserva)"
+                        [attr.aria-haspopup]="'menu'"
+                        [attr.aria-expanded]="reservaEnMenu?.id === reserva.id && menuAbierto"
+                        (click)="abrirMenu($event, reserva, menuAccion)"
+                      >
+                        <span>Marcar como</span>
+                        <svg class="chevron" viewBox="0 0 20 20" aria-hidden="true">
+                          <path
+                            d="M6 8l4 4 4-4"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    </span>
+                  }
+                </td>
+              } @else {
                 <td>
                   @if (reserva.state === 'ACTIVO') {
                     <span
@@ -137,6 +174,32 @@
       </div>
     }
   </section>
+  <p-popover
+    #menuAccion
+    styleClass="mark-menu"
+    (onShow)="menuAbierto = true"
+    (onHide)="menuAbierto = false"
+  >
+    <ul class="mark-list" role="menu" aria-label="Marcar turno como">
+      @for (opcion of opcionesAtencion(reservaEnMenu); track opcion.value) {
+        <li role="none">
+          <button
+            type="button"
+            role="menuitem"
+            class="mark-item"
+            [class]="'mark-item ' + opcion.value"
+            (click)="elegirAccion(opcion.value, menuAccion)"
+          >
+            <span class="dot" aria-hidden="true"></span>
+            <span class="mark-text">
+              <span class="mark-label">{{ opcion.label }}</span>
+              <span class="mark-hint">{{ opcion.hint }}</span>
+            </span>
+          </button>
+        </li>
+      }
+    </ul>
+  </p-popover>
   <p-dialog
     header="Confirmar cancelación"
     [modal]="true"

@@ -18,6 +18,11 @@ export const routes: Routes = [
         loadComponent: () => import('./reservations/reservations').then((m) => m.Reservations),
       },
       {
+        path: 'reservar-turno',
+        loadComponent: () =>
+          import('./reservations/new-reservation/new-reservation').then((m) => m.NewReservation),
+      },
+      {
         path: 'medicos',
         canActivate: [roleGuard('ADMINISTRADOR')],
         loadComponent: () => import('./doctors/doctors').then((m) => m.Doctors),

@@ -1,9 +1,11 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { Popover, PopoverModule } from 'primeng/popover';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { ToastModule } from 'primeng/toast';
@@ -22,6 +24,7 @@ import {
 @Component({
   selector: 'app-reservations',
   imports: [
+    PopoverModule,
     FormsModule,
     ButtonModule,
     DialogModule,
@@ -45,7 +48,7 @@ export class Reservations implements OnDestroy {
   readonly esAdmin = this.rol === 'ADMINISTRADOR';
   readonly esMedico = this.rol === 'MEDICO';
   readonly agenda = signal<AgendaItem[]>([]);
-  fechaAgenda = '';
+  fechaAgenda = Reservations.hoyEnArgentina();
   private consultaAgenda?: Subscription;
   readonly reservas = signal<Reservation[]>([]);
   readonly medicos = signal<Doctor[]>([]);
@@ -62,14 +65,27 @@ export class Reservations implements OnDestroy {
   readonly cargando = signal(false);
   readonly error = signal('');
   readonly cancelando = signal(false);
+  readonly marcando = signal(false);
   mostrarConfirmacion = false;
   reservaSeleccionada?: Reservation;
 
   constructor() {
     if (this.esPaciente || this.esAdmin) {
       this.cargarReservas();
-      this.reloj = setInterval(() => this.ahora.set(Date.now()), 1000);
+    } else if (this.esMedico) {
+      this.cargarAgenda();
     }
+    this.reloj = setInterval(() => this.ahora.set(Date.now()), 1000);
+  }
+
+  /** Fecha de hoy en formato YYYY-MM-DD según la zona horaria de la clínica. */
+  private static hoyEnArgentina(): string {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
   }
 
   ngOnDestroy(): void {
@@ -186,6 +202,94 @@ export class Reservations implements OnDestroy {
             summary: 'Cancelación',
             detail: 'No se pudo cancelar la reserva.',
           });
+        },
+      });
+  }
+
+  /** El médico puede registrar la atención desde el inicio de la consulta (inclusive). */
+  yaEmpezo(reserva: AgendaItem): boolean {
+    const inicio = new Date(reserva.dateTime);
+    if (Number.isNaN(inicio.getTime())) return false;
+    return this.ahora() >= inicio.getTime();
+  }
+
+  private readonly accionesAtencion = [
+    { label: 'Atendido', hint: 'El paciente asistió a la consulta', value: 'ATENDIDO' as const },
+    { label: 'Ausente', hint: 'El paciente no se presentó', value: 'AUSENTE' as const },
+  ];
+  reservaEnMenu?: AgendaItem;
+  menuAbierto = false;
+
+  /** Opciones del menú "Marcar como": todas menos el estado actual del turno. */
+  opcionesAtencion(reserva?: AgendaItem) {
+    if (!reserva) return [];
+    return this.accionesAtencion.filter((accion) => accion.value !== reserva.state);
+  }
+
+  abrirMenu(event: Event, reserva: AgendaItem, menu: Popover): void {
+    if (this.reservaEnMenu?.id === reserva.id && this.menuAbierto) {
+      menu.hide();
+      return;
+    }
+    this.reservaEnMenu = reserva;
+    menu.hide();
+    menu.show(event);
+  }
+
+  elegirAccion(estado: 'ATENDIDO' | 'AUSENTE', menu: Popover): void {
+    const reserva = this.reservaEnMenu;
+    menu.hide();
+    if (!reserva) return;
+    this.marcarAtencion(reserva, estado);
+  }
+
+  puedeMarcar(reserva: AgendaItem, estado: 'ATENDIDO' | 'AUSENTE'): boolean {
+    if (!this.esMedico || reserva.state === estado) return false;
+    if (reserva.state === 'CANCELADO') return false;
+    return this.yaEmpezo(reserva);
+  }
+
+  marcarAtencion(reserva: AgendaItem, estado: 'ATENDIDO' | 'AUSENTE'): void {
+    if (this.marcando()) return;
+    this.ahora.set(Date.now());
+    if (!this.puedeMarcar(reserva, estado)) {
+      this.mensajes.add({
+        severity: 'error',
+        summary: 'Atención',
+        detail: 'La atención sólo se puede registrar desde el inicio de la consulta.',
+      });
+      return;
+    }
+
+    const etiqueta = estado === 'ATENDIDO' ? 'atendido' : 'ausente';
+    this.marcando.set(true);
+    this.client
+      .marcarAtencion(reserva.id, estado)
+      .pipe(finalize(() => this.marcando.set(false)))
+      .subscribe({
+        next: (actualizada) => {
+          this.agenda.update((agenda) =>
+            agenda.map((item) =>
+              item.id === actualizada.id ? { ...item, state: actualizada.state } : item,
+            ),
+          );
+          this.mensajes.add({
+            severity: 'success',
+            summary: 'Atención',
+            detail: `El turno se marcó como ${etiqueta}.`,
+          });
+        },
+        error: (err: HttpErrorResponse) => {
+          const detalle = err.error?.message;
+          this.mensajes.add({
+            severity: 'error',
+            summary: 'Atención',
+            detail:
+              typeof detalle === 'string'
+                ? detalle
+                : `No se pudo marcar el turno como ${etiqueta}.`,
+          });
+          this.cargarAgenda();
         },
       });
   }

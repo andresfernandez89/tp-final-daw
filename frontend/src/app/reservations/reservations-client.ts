@@ -55,6 +55,12 @@ export class ReservationsClient {
     return this.http.patch<Reservation>(`${API_BASE_URL}/reservations/${id}/cancel`, {});
   }
 
+  marcarAtencion(id: number, state: 'ATENDIDO' | 'AUSENTE') {
+    return this.http.patch<Reservation>(`${API_BASE_URL}/reservations/${id}/attendance`, {
+      state,
+    });
+  }
+
   obtenerAgenda(date: string) {
     return this.http.get<AgendaItem[]>(`${API_BASE_URL}/reservations/agenda`, {
       params: new HttpParams().set('date', date),
