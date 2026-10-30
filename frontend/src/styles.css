@@ -15,3 +15,85 @@ body {
 .reservation-toast .p-toast-message-success .p-toast-detail {
   color: #1e293b;
 }
+
+/* Menú "Marcar como" de la agenda del médico (p-popover se monta en body). */
+.p-popover.mark-menu {
+  --p-popover-background: #fff;
+  --p-popover-border-color: #e2e8f0;
+  --p-popover-border-radius: 10px;
+  --p-popover-content-padding: 6px;
+  --p-popover-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.25), 0 2px 6px rgba(15, 23, 42, 0.08);
+  min-width: 230px;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  line-height: 1.45;
+}
+.p-popover.mark-menu::before,
+.p-popover.mark-menu::after {
+  display: none;
+}
+.mark-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mark-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #1e293b;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.mark-item:hover,
+.mark-item:focus-visible {
+  background: #f1f5f9;
+  outline: none;
+}
+.mark-item .dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--dot-ring);
+}
+.mark-item.ATENDIDO .dot {
+  background: #22a06b;
+  --dot-ring: #d3f1e3;
+}
+.mark-item.AUSENTE .dot {
+  background: #e3a008;
+  --dot-ring: #fbeccb;
+}
+.mark-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.mark-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.mark-item.ATENDIDO .mark-label {
+  color: #176648;
+}
+.mark-item.AUSENTE .mark-label {
+  color: #a66a12;
+}
+.mark-hint {
+  font-size: 12px;
+  color: #64748b;
+}
