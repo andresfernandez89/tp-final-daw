@@ -1,8 +1,28 @@
 import { MigrationInterface, QueryRunner, Table } from 'typeorm';
 
+/**
+ * Migración inicial: crea el esquema completo de la base de datos.
+ *
+ * Tablas:
+ * - `usuarios`: documento (único), apellidos, nombres, email, clave (hash),
+ *   estado (`estados_usuarios`: ACTIVO/BAJA) y rol (`roles_usuarios`:
+ *   MEDICO/PACIENTE/ADMINISTRADOR).
+ * - `medicos`: ficha profesional (matrícula, valor_consulta) vinculada 1:1 a
+ *   un usuario.
+ * - `reservas`: turno de un médico con un paciente en una fecha y hora, con
+ *   estado (`estados_reservas`: ACTIVO/ATENDIDO/AUSENTE/CANCELADO) y el
+ *   valor de consulta congelado.
+ */
 export class InitialSchema1790112080504 implements MigrationInterface {
+  /** Nombre con el que TypeORM registra la migración en la tabla `migrations`. */
   name = 'InitialSchema1790112080504';
 
+  /**
+   * Crea los tipos enumerados y las tablas `usuarios`, `medicos` y `reservas`
+   * con sus claves foráneas.
+   *
+   * @param queryRunner Ejecutor de consultas de la transacción de migración.
+   */
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
@@ -105,6 +125,12 @@ export class InitialSchema1790112080504 implements MigrationInterface {
     );
   }
 
+  /**
+   * Revierte la migración eliminando las tablas en orden inverso a sus
+   * dependencias.
+   *
+   * @param queryRunner Ejecutor de consultas de la transacción de migración.
+   */
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.dropColumn('reservas', 'estado');
     await queryRunner.dropTable('reservas');
