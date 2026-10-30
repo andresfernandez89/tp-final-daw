@@ -1,0 +1,90 @@
+<p-toast styleClass="reservation-toast" />
+<h1>Valores de consulta</h1>
+<section class="panel" aria-label="Valores de consulta">
+  @if (cargando()) {
+    <p class="message" role="status">Cargando médicos...</p>
+  } @else if (error()) {
+    <p class="message" role="alert">{{ error() }}</p>
+  } @else if (medicos().length === 0) {
+    <p class="message">No hay médicos para mostrar.</p>
+  } @else {
+    <div class="table-wrap">
+      <p-table [value]="medicos()" dataKey="id" [tableStyle]="{ 'min-width': '480px' }">
+        <ng-template #header>
+          <tr>
+            <th>Médico</th>
+            <th>Valor de consulta</th>
+            <th>Acción</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-medico>
+          <tr>
+            <td>{{ nombreMedico(medico) }}</td>
+            <td>{{ valor(medico.valor_consulta) }}</td>
+            <td>
+              <button
+                pButton
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                (click)="abrirEdicion(medico)"
+              >
+                Modificar
+              </button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  }
+</section>
+<p-dialog
+  header="Modificar valor de consulta"
+  [modal]="true"
+  [visible]="seleccionado() !== null"
+  (visibleChange)="$event || cerrarEdicion()"
+  [closable]="!guardando()"
+  [style]="{ width: '25rem', maxWidth: '95vw' }"
+>
+  @if (seleccionado(); as medico) {
+    <form
+      class="edit-form"
+      [formGroup]="form"
+      (ngSubmit)="guardar()"
+      [attr.aria-busy]="guardando()"
+    >
+      <p class="subtle">{{ nombreMedico(medico) }}</p>
+      <div class="field">
+        <label for="valor-consulta">Valor de consulta</label>
+        <p-inputnumber
+          inputId="valor-consulta"
+          formControlName="valorConsulta"
+          prefix="$ "
+          locale="es-AR"
+          [min]="1"
+          [max]="valorMaximo"
+          [maxFractionDigits]="0"
+          [fluid]="true"
+        />
+      </div>
+      @if (errorEdicion()) {
+        <p class="error" role="alert">{{ errorEdicion() }}</p>
+      }
+      <div class="dialog-actions">
+        <button
+          pButton
+          type="button"
+          severity="secondary"
+          [outlined]="true"
+          [disabled]="guardando()"
+          (click)="cerrarEdicion()"
+        >
+          Cancelar
+        </button>
+        <button pButton type="submit" [disabled]="guardando()">
+          {{ guardando() ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </form>
+  }
+</p-dialog>

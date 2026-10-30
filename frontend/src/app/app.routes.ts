@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './auth/auth-guard';
+import { authGuard, roleGuard } from './auth/auth-guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -24,6 +24,7 @@ export const routes: Routes = [
       },
       {
         path: 'medicos',
+        canActivate: [roleGuard('ADMINISTRADOR')],
         loadComponent: () => import('./doctors/doctors').then((m) => m.Doctors),
       },
     ],
