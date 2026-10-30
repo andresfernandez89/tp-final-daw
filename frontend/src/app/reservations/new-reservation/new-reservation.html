@@ -7,9 +7,16 @@
         @if (esAdmin) {
           <div class="field">
             <label for="paciente">Paciente</label>
-            <p-select inputId="paciente" name="paciente" [(ngModel)]="pacienteId"
-              [options]="opcionesPacientes()" optionLabel="label" optionValue="value"
-              placeholder="Seleccionar paciente" [disabled]="cargandoPacientes() || enviando()" />
+            <p-select
+              inputId="paciente"
+              name="paciente"
+              [(ngModel)]="pacienteId"
+              [options]="opcionesPacientes()"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Seleccionar paciente"
+              [disabled]="cargandoPacientes() || enviando()"
+            />
           </div>
         }
         <div class="field">
@@ -73,7 +80,11 @@
       }
       <div class="actions">
         <a routerLink="/turnos">{{ esAdmin ? 'Volver a reservas' : 'Volver a mis reservas' }}</a>
-        <button pButton type="submit" [disabled]="!horario || (esAdmin && !pacienteId) || cargandoHorarios() || enviando()">
+        <button
+          pButton
+          type="submit"
+          [disabled]="!horario || (esAdmin && !pacienteId) || cargandoHorarios() || enviando()"
+        >
           Confirmar reserva
         </button>
       </div>
