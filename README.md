@@ -35,6 +35,7 @@ Los nombres siguen el formato `<proyecto>:<acción>[:<variante>]`.
 | `npm run backend:start`       | Iniciar el backend en desarrollo con recarga automática.      |
 | `npm run backend:start:debug` | Iniciar el backend con depuración y recarga automática.       |
 | `npm run backend:build`       | Compilar el backend.                                          |
+| `npm run backend:deploy`      | Instalar, compilar y reiniciar el backend con PM2.             |
 | `npm run backend:start:prod`  | Ejecutar el backend compilado; requiere compilar previamente. |
 | `npm run backend:lint`        | Ejecutar el linter del backend.                               |
 | `npm run backend:test`        | Ejecutar las pruebas unitarias del backend.                   |
@@ -43,8 +44,14 @@ Los nombres siguen el formato `<proyecto>:<acción>[:<variante>]`.
 | `npm run backend:db:rollback` | Revertir la última migración.                                 |
 | `npm run backend:db:status`   | Consultar el estado de las migraciones.                       |
 | `npm run backend:db:seed`     | Reiniciar y cargar los datos de demostración.                 |
+| `npm run frontend:install`    | Instalar las dependencias usando el lockfile del frontend.    |
+| `npm run frontend:ng -- ...`  | Ejecutar un comando de Angular CLI.                           |
+| `npm run frontend:start`      | Iniciar el frontend en desarrollo.                            |
+| `npm run frontend:build`      | Compilar el frontend.                                         |
+| `npm run frontend:watch`      | Compilar el frontend en modo observación.                     |
+| `npm run frontend:test`       | Ejecutar las pruebas del frontend.                            |
 
-Los comandos delegan en `backend/package.json` mediante `npm --prefix backend`, por lo que el servidor y las herramientas de base de datos leen `backend/.env`.
+Los comandos delegan en `backend/package.json` y `frontend/package.json` mediante `npm --prefix`; el servidor y las herramientas de base de datos leen `backend/.env`.
 
 ## API y Swagger
 
