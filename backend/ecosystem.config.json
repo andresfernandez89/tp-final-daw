@@ -1,0 +1,9 @@
+{
+  "apps": [
+    {
+      "name": "sistema-de-clinica",
+      "script": "dist/main.js",
+      "time": true
+    }
+  ]
+}
