@@ -1,0 +1,1370 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "Autentica a un usuario activo y devuelve un token de acceso y sus datos. El token debe enviarse en la cabecera `Authorization: Bearer <token>` en el resto de las operaciones. Expira a las 8 horas.",
+        "operationId": "LoginController_login_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Credenciales válidas: token de acceso y datos del usuario.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cuerpo de la solicitud no válido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "El número de documento o la contraseña son incorrectos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Iniciar sesión",
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/api/v1/doctors": {
+      "get": {
+        "description": "Devuelve los médicos activos ordenados por ID para pacientes y administradores. Roles autorizados: PACIENTE y ADMINISTRADOR.",
+        "operationId": "DoctorsController_findAll_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Listado de médicos activos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DoctorListItemDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "El token de acceso no se proporcionó o no es válido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol del usuario no tiene permiso para listar médicos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "No se pudo obtener la lista de médicos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Listar médicos",
+        "tags": [
+          "Médicos"
+        ]
+      }
+    },
+    "/api/v1/doctors/{id}/valor-consulta": {
+      "patch": {
+        "description": "Actualiza únicamente el valor de consulta del médico indicado. Las reservas existentes conservan el importe registrado al momento de su creación. Rol autorizado: ADMINISTRADOR.",
+        "operationId": "DoctorsController_updateValorConsulta_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Identificador del médico.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDoctorFeeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Médico con el valor de consulta actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoctorListItemDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Identificador o datos del cuerpo inválidos o desconocidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol del usuario no tiene permiso para modificar el arancel.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El médico no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "No se pudo actualizar el valor de consulta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Modificar valor de consulta",
+        "tags": [
+          "Médicos"
+        ]
+      }
+    },
+    "/api/v1/patients": {
+      "get": {
+        "description": "Permite a un administrador listar pacientes activos o buscar por documento exacto. El documento se consulta sin espacios al inicio ni al final. Los resultados se ordenan por apellido y nombre. Devuelve un arreglo vacío cuando no hay coincidencias. Rol autorizado: ADMINISTRADOR.",
+        "operationId": "PatientsController_findPatients_v1",
+        "parameters": [
+          {
+            "name": "document",
+            "required": false,
+            "in": "query",
+            "description": "Documento del paciente para una búsqueda exacta. Se ignoran los espacios al inicio y al final. Si se omite, se listan todos los pacientes activos.",
+            "schema": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "example": "30000001",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de pacientes activos que cumplen el filtro indicado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PatientDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El documento está vacío, contiene solo espacios o se envió más de una vez; también se rechazan parámetros de consulta desconocidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "El token de acceso no fue enviado, es inválido o expiró.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario autenticado no tiene el rol ADMINISTRADOR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "No se pudo consultar la base de datos o validar los datos de respuesta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Consultar pacientes activos",
+        "tags": [
+          "Pacientes"
+        ]
+      }
+    },
+    "/api/v1/reservations": {
+      "post": {
+        "description": "El paciente reserva para sí mismo; el administrador debe indicar patientId. Usar dateTime de la disponibilidad (Buenos Aires, -03:00). Turnos futuros de una hora, de 08:00 a 15:00, hasta 30 días inclusive. El servidor asigna ACTIVO y congela el precio actual del médico. Roles autorizados: PACIENTE y ADMINISTRADOR.",
+        "operationId": "ReservationsController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReservationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reserva creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutputReservationDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos, horario fuera de rango o falta patientId para el administrador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no autorizado o paciente intentando reservar para otra persona.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No se encontró un médico o paciente activo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El horario seleccionado ya está ocupado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error de persistencia o validación de salida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Crear una reserva",
+        "tags": [
+          "Reservas"
+        ]
+      },
+      "get": {
+        "description": "Devuelve exclusivamente las reservas del paciente autenticado: la identidad se deriva del token de acceso (usuarios.id) y no se acepta ningún identificador de paciente por parámetro. Los resultados se ordenan por fecha y hora ascendente y por ID como desempate. Devuelve un arreglo vacío cuando el paciente no tiene reservas. Rol autorizado: PACIENTE.",
+        "operationId": "ReservationsController_findMyReservations_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Listado de reservas del paciente autenticado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OutputReservationDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "El token de acceso no se proporcionó o no es válido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol del usuario no tiene permiso para listar sus reservas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "No se pudo obtener el listado de reservas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Listar mis reservas",
+        "tags": [
+          "Reservas"
+        ]
+      }
+    },
+    "/api/v1/reservations/{id}/cancel": {
+      "patch": {
+        "description": "Paciente: sólo reservas propias hasta el día calendario anterior en Buenos Aires. Administrador: antes del inicio. Sólo ACTIVO pasa a CANCELADO. Repetir una cancelación autorizada devuelve éxito sin cambios, incluso fuera del plazo. Roles autorizados: PACIENTE y ADMINISTRADOR.",
+        "operationId": "ReservationsController_cancel_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Identificador de la reserva.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reserva cancelada o ya cancelada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutputReservationDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Identificador inválido o plazo de cancelación vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no autorizado o reserva de otro paciente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reserva no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "La reserva está ATENDIDO o AUSENTE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error de persistencia o validación de salida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancelar una reserva",
+        "tags": [
+          "Reservas"
+        ]
+      }
+    },
+    "/api/v1/reservations/{id}/attendance": {
+      "patch": {
+        "description": "Desde el inicio inclusive. ACTIVO pasa a ATENDIDO o AUSENTE; se permite corregir ATENDIDO a AUSENTE y AUSENTE a ATENDIDO. CANCELADO no se puede modificar. Repetir el mismo estado autorizado devuelve éxito sin escritura ni límite temporal. Rol autorizado: MEDICO.",
+        "operationId": "ReservationsController_markAttendance_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Identificador de la reserva.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReservationAttendanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reserva actualizada o ya en ese estado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutputReservationDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Identificador o DTO inválido, campos desconocidos o consulta no iniciada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no autorizado o reserva de otro médico.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reserva no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Transición incompatible con el estado persistido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error de persistencia o validación de salida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Registrar atención o ausencia de una reserva propia",
+        "tags": [
+          "Reservas"
+        ]
+      }
+    },
+    "/api/v1/reservations/availability": {
+      "get": {
+        "description": "Devuelve turnos libres de una hora entre las 08:00 y las 16:00 para un médico activo, desde hoy hasta los próximos 30 días inclusive según la hora de Argentina. Excluye los inicios pasados o actuales del día de hoy. Roles autorizados: PACIENTE y ADMINISTRADOR.",
+        "operationId": "ReservationsController_findAvailability_v1",
+        "parameters": [
+          {
+            "name": "doctorId",
+            "required": true,
+            "in": "query",
+            "description": "Identificador del médico.",
+            "schema": {
+              "minimum": 1,
+              "format": "int32",
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "description": "Fecha de calendario en formato YYYY-MM-DD, desde hoy hasta los próximos 30 días inclusive, según la hora de Argentina.",
+            "schema": {
+              "format": "date",
+              "example": "2026-11-10",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Turnos disponibles; una lista vacía indica que no hay turnos libres.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AvailabilitySlotDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Los parámetros son inválidos o la fecha está fuera del rango permitido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "El token de acceso no se proporcionó o no es válido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol del usuario no tiene permiso para consultar la disponibilidad.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El médico no existe, está inactivo o no tiene el rol de médico.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "No se pudo consultar o validar la disponibilidad de reservas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Consultar disponibilidad de reservas",
+        "tags": [
+          "Reservas"
+        ]
+      }
+    },
+    "/api/v1/reservations/admin": {
+      "get": {
+        "description": "Disponible exclusivamente para el rol ADMINISTRADOR, derivado del token de acceso. Permite filtrar por estado exacto (state) y por documento exacto del paciente (document); si se omiten ambos filtros, devuelve todas las reservas. El documento se compara ignorando los espacios al inicio y al final. Los resultados se ordenan por fecha y hora ascendente y por ID como desempate. Devuelve un arreglo vacío cuando ninguna reserva coincide con los filtros.",
+        "operationId": "ReservationsController_findAll_v1",
+        "parameters": [
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "Estado exacto por el que se filtran las reservas. Valores permitidos: ACTIVO, ATENDIDO, AUSENTE o CANCELADO. Si se omite, se listan las reservas de todos los estados.",
+            "schema": {
+              "$ref": "#/components/schemas/ReservationState"
+            }
+          },
+          {
+            "name": "document",
+            "required": false,
+            "in": "query",
+            "description": "Documento del paciente para una búsqueda exacta. Se ignoran los espacios al inicio y al final. Si se omite, se listan las reservas de todos los pacientes.",
+            "schema": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "example": "30000001",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listado completo de reservas que cumplen los filtros indicados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OutputReservationDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El estado no es uno de los valores permitidos (ACTIVO, ATENDIDO, AUSENTE o CANCELADO), el documento está vacío o contiene solo espacios; también se rechazan parámetros de consulta desconocidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "El token de acceso no fue enviado, es inválido o expiró.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario autenticado no tiene el rol ADMINISTRADOR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "No se pudo obtener el listado de reservas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Listar reservas de todos los pacientes",
+        "tags": [
+          "Reservas"
+        ]
+      }
+    },
+    "/api/v1/reservations/agenda": {
+      "get": {
+        "description": "Disponible exclusivamente para el rol MEDICO. El médico se deriva exclusivamente del token de acceso (usuarios.id); no se acepta ningún identificador de médico por parámetro. El parámetro obligatorio date, en formato YYYY-MM-DD, selecciona las reservas cuyo día coincide con esa fecha según la base de datos. Los resultados se ordenan por fecha y hora ascendente y por ID como desempate. Devuelve un arreglo vacío cuando el médico no tiene ficha, no tiene reservas en la fecha o la fecha no registra reservas.",
+        "operationId": "ReservationsController_findAgenda_v1",
+        "parameters": [
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "description": "Fecha de la agenda en formato YYYY-MM-DD. Debe ser una fecha de calendario válida.",
+            "schema": {
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-10-16",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agenda del médico autenticado para la fecha indicada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OutputAgendaItemDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "La fecha es obligatoria, debe tener el formato YYYY-MM-DD y ser una fecha de calendario válida; también se rechazan parámetros de consulta desconocidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "El token de acceso no fue enviado, es inválido o expiró.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El usuario autenticado no tiene el rol MEDICO.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "No se pudo obtener la agenda del médico.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Consultar la agenda del médico autenticado",
+        "tags": [
+          "Reservas"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Sistema de Clínica Médica",
+    "description": "API REST del sistema de gestión de turnos de la clínica médica (Trabajo Final Integrador — Desarrollo de Aplicaciones Web, UNER).\n\n**Autenticación.** Todos los endpoints, salvo `POST /auth/login`, requieren un token JWT en la cabecera `Authorization: Bearer <token>`. El token se obtiene al iniciar sesión con documento y clave, y expira a las 8 horas.\n\n**Roles.** Cada usuario tiene un único rol: `PACIENTE`, `MEDICO` o `ADMINISTRADOR`. Cada operación indica los roles autorizados; un rol no permitido recibe `403 Forbidden`.\n\n**Zona horaria.** Los horarios de los turnos se expresan en la hora de Buenos Aires (`America/Argentina/Buenos_Aires`, UTC-03:00). Los turnos duran una hora y comienzan entre las 08:00 y las 15:00.\n\n**Errores.** Las respuestas de error siguen el formato estándar de NestJS: `{ statusCode, message, error }`. En los errores de validación `message` es un arreglo con un detalle por campo.",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "Autenticación",
+      "description": "Inicio de sesión y emisión del token de acceso."
+    },
+    {
+      "name": "Médicos",
+      "description": "Listado de médicos activos y administración del valor de consulta."
+    },
+    {
+      "name": "Pacientes",
+      "description": "Consulta de pacientes activos (sólo administradores)."
+    },
+    {
+      "name": "Reservas",
+      "description": "Disponibilidad, creación, cancelación, atención y listados de turnos."
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "description": "Token de acceso devuelto por `POST /auth/login`. Pegar sólo el token, sin el prefijo `Bearer`."
+      }
+    },
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "documento": {
+            "type": "string",
+            "description": "Número de documento del usuario.",
+            "example": "30000001",
+            "minLength": 1
+          },
+          "clave": {
+            "type": "string",
+            "format": "password",
+            "description": "Contraseña del usuario.",
+            "example": "Clave123",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "documento",
+          "clave"
+        ]
+      },
+      "UserRole": {
+        "type": "string",
+        "enum": [
+          "MEDICO",
+          "PACIENTE",
+          "ADMINISTRADOR"
+        ],
+        "description": "Rol del usuario."
+      },
+      "LoginUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Identificador del usuario en la tabla usuarios.",
+            "example": 7
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Correo electrónico del usuario.",
+            "example": "paciente1@example.com"
+          },
+          "role": {
+            "description": "Rol del usuario.",
+            "example": "PACIENTE",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserRole"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Token de acceso JWT. Enviar como `Authorization: Bearer <token>`. Expira a las 8 horas.",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjcsInJvbGUiOiJQQUNJRU5URSJ9.firma"
+          },
+          "user": {
+            "description": "Datos del usuario autenticado.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LoginUserDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "accessToken",
+          "user"
+        ]
+      },
+      "ErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "description": "Código de estado HTTP.",
+            "example": 400
+          },
+          "message": {
+            "description": "Mensaje del error. En errores de validación es un arreglo de mensajes.",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "example": "El horario seleccionado ya está ocupado."
+          },
+          "error": {
+            "type": "string",
+            "description": "Nombre del tipo de error HTTP.",
+            "example": "Bad Request"
+          }
+        },
+        "required": [
+          "statusCode",
+          "message"
+        ]
+      },
+      "DoctorListItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Identificador del médico en la tabla medicos.",
+            "example": 1
+          },
+          "nombres": {
+            "type": "string",
+            "description": "Nombres del médico.",
+            "example": "Uno"
+          },
+          "apellidos": {
+            "type": "string",
+            "description": "Apellidos del médico.",
+            "example": "Medico"
+          },
+          "matricula": {
+            "type": "integer",
+            "description": "Número de matrícula profesional.",
+            "example": 10001
+          },
+          "valor_consulta": {
+            "type": "integer",
+            "description": "Valor de consulta vigente en pesos argentinos.",
+            "example": 15000
+          }
+        },
+        "required": [
+          "id",
+          "nombres",
+          "apellidos",
+          "matricula",
+          "valor_consulta"
+        ]
+      },
+      "UpdateDoctorFeeDto": {
+        "type": "object",
+        "properties": {
+          "valor_consulta": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Nuevo valor de la consulta en pesos argentinos.",
+            "example": 18000
+          }
+        },
+        "required": [
+          "valor_consulta"
+        ]
+      },
+      "PatientDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Identificador del paciente en la tabla usuarios.",
+            "example": 7
+          },
+          "document": {
+            "type": "string",
+            "description": "Documento del paciente.",
+            "example": "30000001",
+            "minLength": 1
+          },
+          "firstName": {
+            "type": "string",
+            "description": "Nombres del paciente.",
+            "example": "Uno",
+            "minLength": 1
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Apellidos del paciente.",
+            "example": "Paciente",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "document",
+          "firstName",
+          "lastName"
+        ]
+      },
+      "CreateReservationDto": {
+        "type": "object",
+        "properties": {
+          "doctorId": {
+            "type": "number",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Identificador del médico.",
+            "example": 1
+          },
+          "dateTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Inicio del turno en Buenos Aires, con formato YYYY-MM-DDTHH:00:00-03:00. Usar un horario de la disponibilidad.",
+            "example": "2026-11-10T09:00:00-03:00"
+          },
+          "patientId": {
+            "type": "number",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Paciente activo para el que reserva el administrador (obligatorio para ese rol). El paciente autenticado sólo puede reservar para sí mismo.",
+            "example": 7
+          }
+        },
+        "required": [
+          "doctorId",
+          "dateTime"
+        ]
+      },
+      "ReservationState": {
+        "type": "string",
+        "enum": [
+          "ACTIVO",
+          "ATENDIDO",
+          "AUSENTE",
+          "CANCELADO"
+        ],
+        "description": "Estado de la reserva."
+      },
+      "OutputReservationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Identificador de la reserva.",
+            "example": 12
+          },
+          "doctorId": {
+            "type": "integer",
+            "description": "Identificador del médico en la tabla medicos.",
+            "example": 1
+          },
+          "patientId": {
+            "type": "integer",
+            "description": "Identificador del paciente en la tabla usuarios.",
+            "example": 7
+          },
+          "dateTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de la consulta reservada.",
+            "example": "2026-11-10T12:00:00.000Z"
+          },
+          "state": {
+            "description": "Estado de la reserva.",
+            "example": "ACTIVO",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReservationState"
+              }
+            ]
+          },
+          "consultationFee": {
+            "type": "integer",
+            "description": "Valor de la consulta registrado en la reserva.",
+            "example": 15000
+          }
+        },
+        "required": [
+          "id",
+          "doctorId",
+          "patientId",
+          "dateTime",
+          "state",
+          "consultationFee"
+        ]
+      },
+      "UpdateReservationAttendanceDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "ATENDIDO",
+              "AUSENTE"
+            ],
+            "description": "Resultado de la consulta, indicado por el médico asignado.",
+            "example": "ATENDIDO"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "AvailabilitySlotDto": {
+        "type": "object",
+        "properties": {
+          "dateTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Inicio de un turno disponible de una hora, en formato ISO 8601 con el desplazamiento horario de Argentina (-03:00).",
+            "example": "2026-11-10T09:00:00-03:00"
+          }
+        },
+        "required": [
+          "dateTime"
+        ]
+      },
+      "OutputAgendaItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Identificador de la reserva.",
+            "example": 12
+          },
+          "dateTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de la consulta reservada.",
+            "example": "2026-10-16T12:00:00.000Z"
+          },
+          "state": {
+            "description": "Estado de la reserva.",
+            "example": "ACTIVO",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReservationState"
+              }
+            ]
+          },
+          "patientId": {
+            "type": "integer",
+            "description": "Identificador del paciente en la tabla usuarios.",
+            "example": 7
+          },
+          "patientDocument": {
+            "type": "string",
+            "description": "Documento del paciente.",
+            "example": "30000001"
+          },
+          "patientFirstName": {
+            "type": "string",
+            "description": "Nombres del paciente.",
+            "example": "Uno"
+          },
+          "patientLastName": {
+            "type": "string",
+            "description": "Apellidos del paciente.",
+            "example": "Paciente"
+          },
+          "consultationFee": {
+            "type": "integer",
+            "description": "Valor de la consulta registrado en la reserva.",
+            "example": 15000
+          }
+        },
+        "required": [
+          "id",
+          "dateTime",
+          "state",
+          "patientId",
+          "patientDocument",
+          "patientFirstName",
+          "patientLastName",
+          "consultationFee"
+        ]
+      }
+    }
+  }
+}

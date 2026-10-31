@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsISO8601, IsNotEmpty, IsString, Matches } from 'class-validator';
 
+/** Parámetros de consulta de `GET /reservations/agenda`. */
 export class FindAgendaQueryDto {
+  /** Fecha de la agenda (`YYYY-MM-DD`); obligatoria y debe ser una fecha de calendario válida. */
   @ApiProperty({
     description:
       'Fecha de la agenda en formato YYYY-MM-DD. Debe ser una fecha de calendario válida.',

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/compodoc/compodoc/develop/src/config/schema.json",
+  "tsconfig": "tsconfig.app.json",
+  "output": "documentation",
+  "name": "Clínica Médica — Frontend",
+  "language": "es-ES",
+  "includes": "docs",
+  "includesName": "Guías",
+  "hideGenerator": true,
+  "disableSourceCode": false,
+  "customFavicon": "public/favicon.ico"
+}

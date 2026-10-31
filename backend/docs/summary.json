@@ -1,0 +1,18 @@
+[
+  {
+    "title": "Autenticación y roles",
+    "file": "autenticacion-y-roles.md"
+  },
+  {
+    "title": "Reglas de negocio de reservas",
+    "file": "reglas-de-reservas.md"
+  },
+  {
+    "title": "Base de datos, migraciones y seeds",
+    "file": "base-de-datos.md"
+  },
+  {
+    "title": "Swagger y OpenAPI",
+    "file": "swagger.md"
+  }
+]

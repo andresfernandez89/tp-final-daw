@@ -1,6 +1,22 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './auth/auth-guard';
+import { authGuard, roleGuard } from './auth/auth-guard';
 
+/**
+ * Rutas de la aplicación. Todas las pantallas se cargan de forma diferida
+ * (`loadComponent`).
+ *
+ * | Ruta              | Componente       | Acceso                                   |
+ * | ----------------- | ---------------- | ---------------------------------------- |
+ * | `/login`          | `Login`          | Público                                  |
+ * | `/turnos`         | `Reservations`   | Autenticado (cualquier rol)              |
+ * | `/reservar-turno` | `NewReservation` | Autenticado (la pantalla valida el rol)  |
+ * | `/medicos`        | `Doctors`        | Autenticado con rol `ADMINISTRADOR`      |
+ * | `**`              | `NotFound`       | Público                                  |
+ *
+ * Las rutas protegidas son hijas del {@link Layout}, que aplica
+ * {@link authGuard} en `canActivate` y `canActivateChild`. La raíz redirige a
+ * `/login`.
+ */
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   {
@@ -24,6 +40,7 @@ export const routes: Routes = [
       },
       {
         path: 'medicos',
+        canActivate: [roleGuard('ADMINISTRADOR')],
         loadComponent: () => import('./doctors/doctors').then((m) => m.Doctors),
       },
     ],

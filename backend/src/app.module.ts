@@ -8,6 +8,17 @@ import { PatientsModule } from './modules/patients/patients.module.js';
 import { ReservationsModule } from './modules/reservations/reservations.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
+/**
+ * Módulo raíz de la aplicación.
+ *
+ * Configura las variables de entorno (globales), la conexión a PostgreSQL con
+ * TypeORM (sin `synchronize`; el esquema se gestiona con migraciones) y agrupa
+ * los módulos funcionales: autenticación, usuarios, médicos, pacientes y
+ * reservas.
+ *
+ * Variables de entorno utilizadas: `DB_HOST`, `DB_PORT`, `DB_USERNAME`,
+ * `DB_PASSWORD`, `DB_NAME` y `DB_LOGGING`.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({
