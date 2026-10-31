@@ -34,15 +34,40 @@ import { OutputReservationDto } from '../dtos/output/reservation.dto.js';
 import { Reservation } from '../entities/reservation.entity.js';
 import { ReservationState } from '../enums/reservation-state.enum.js';
 
+/** Usuario que ejecuta una operación sobre reservas: id de usuario (`sub`) y rol. */
 export type ReservationActor = { sub: number; role: UserRole };
 
+/** Reserva leída con bloqueo, con el id de usuario del médico para validar la pertenencia. */
 type LockedReservation = OutputReservationDto & { doctorUserId: number };
 
+/** Horas de inicio de turno válidas (turnos de una hora, de 08:00 a 15:00 inclusive). */
 const APPOINTMENT_HOURS = [8, 9, 10, 11, 12, 13, 14, 15];
+/** Zona horaria de la clínica; todas las reglas de fecha y hora se evalúan en ella. */
 const CLINIC_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
+/**
+ * Servicio de reservas. Implementa las reglas de negocio de los turnos.
+ *
+ * Reglas principales:
+ * - Los turnos duran una hora y comienzan entre las 08:00 y las 15:00, hora
+ *   de Buenos Aires, desde hoy hasta 30 días en adelante.
+ * - Al crear se congela el valor de consulta vigente del médico.
+ * - El paciente cancela hasta el día calendario anterior; el administrador,
+ *   hasta el inicio del turno.
+ * - El médico registra `ATENDIDO`/`AUSENTE` desde el inicio del turno y puede
+ *   corregir entre ambos; `CANCELADO` es final.
+ * - Las mutaciones usan transacciones con bloqueo pesimista para evitar
+ *   dobles reservas y condiciones de carrera.
+ */
 @Injectable()
 export class ReservationsService {
+  /**
+   * Inyecta la fuente de datos, el repositorio de reservas y el servicio de médicos.
+   *
+   * @param dataSource Fuente de datos, para ejecutar transacciones con bloqueo.
+   * @param reservationsRepository Repositorio de la entidad {@link Reservation}.
+   * @param doctorsService Servicio de médicos, para validar médicos activos.
+   */
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(Reservation)
@@ -50,6 +75,21 @@ export class ReservationsService {
     private readonly doctorsService: DoctorsService,
   ) {}
 
+  /**
+   * Crea una reserva en estado `ACTIVO`.
+   *
+   * Dentro de una transacción bloquea la fila del médico (evita dos reservas
+   * simultáneas en el mismo horario), valida paciente y médico activos, el
+   * rango horario y que el horario esté libre, y congela el valor de consulta.
+   *
+   * @param input Médico, horario y paciente opcional.
+   * @param actor Usuario autenticado (`PACIENTE` o `ADMINISTRADOR`).
+   * @returns La reserva creada.
+   * @throws ForbiddenException si el rol no está autorizado o un paciente reserva para otro.
+   * @throws BadRequestException si falta el paciente (administrador) o el horario es inválido.
+   * @throws NotFoundException si el médico o el paciente no están activos.
+   * @throws ConflictException si el horario ya está ocupado.
+   */
   async create(
     input: CreateReservationDto,
     actor: ReservationActor,
@@ -146,6 +186,15 @@ export class ReservationsService {
     });
   }
 
+  /**
+   * Cancela una reserva (`ACTIVO` → `CANCELADO`).
+   *
+   * @param id Identificador de la reserva.
+   * @param actor Usuario autenticado (`PACIENTE` o `ADMINISTRADOR`).
+   * @returns La reserva cancelada.
+   * @throws ForbiddenException si el rol no está autorizado.
+   * @see changeState para el resto de las validaciones.
+   */
   async cancel(
     id: number,
     actor: ReservationActor,
@@ -158,6 +207,17 @@ export class ReservationsService {
     return this.changeState(id, actor, ReservationState.CANCELADO);
   }
 
+  /**
+   * Registra la atención o la ausencia del paciente en una reserva.
+   *
+   * @param id Identificador de la reserva.
+   * @param actor Usuario autenticado (debe ser `MEDICO`).
+   * @param input Estado destino: `ATENDIDO` o `AUSENTE`.
+   * @returns La reserva actualizada.
+   * @throws ForbiddenException si el rol no es `MEDICO`.
+   * @throws BadRequestException si el estado no es `ATENDIDO` ni `AUSENTE`.
+   * @see changeState para el resto de las validaciones.
+   */
   async markAttendance(
     id: number,
     actor: ReservationActor,
@@ -178,6 +238,13 @@ export class ReservationsService {
     return this.changeState(id, actor, input.state);
   }
 
+  /**
+   * Lista las reservas de un paciente, ordenadas por fecha y hora e id.
+   *
+   * @param patientId Identificador del paciente (`usuarios.id`).
+   * @returns Reservas del paciente; vacío si no tiene.
+   * @throws InternalServerErrorException si falla la consulta.
+   */
   async findByPatient(patientId: number): Promise<OutputReservationDto[]> {
     try {
       const reservations = await this.reservationsRepository
@@ -185,10 +252,7 @@ export class ReservationsService {
         .select('r.id', 'id')
         .addSelect('r.id_medico', 'doctorId')
         .addSelect('r.id_paciente', 'patientId')
-        .addSelect(
-          'r.fecha_hora AT TIME ZONE :clinicTimeZone',
-          'dateTime',
-        )
+        .addSelect('r.fecha_hora AT TIME ZONE :clinicTimeZone', 'dateTime')
         .addSelect('r.estado', 'state')
         .addSelect('r.valor_consulta', 'consultationFee')
         .where('r.id_paciente = :patientId', { patientId })
@@ -209,6 +273,14 @@ export class ReservationsService {
     }
   }
 
+  /**
+   * Lista todas las reservas, con filtros opcionales por estado y documento
+   * del paciente (uso del administrador).
+   *
+   * @param filters Filtros opcionales.
+   * @returns Reservas ordenadas por fecha y hora e id.
+   * @throws InternalServerErrorException si falla la consulta.
+   */
   async findAll(
     filters: FindReservationsQueryDto,
   ): Promise<OutputReservationDto[]> {
@@ -218,10 +290,7 @@ export class ReservationsService {
         .select('r.id', 'id')
         .addSelect('r.id_medico', 'doctorId')
         .addSelect('r.id_paciente', 'patientId')
-        .addSelect(
-          'r.fecha_hora AT TIME ZONE :clinicTimeZone',
-          'dateTime',
-        )
+        .addSelect('r.fecha_hora AT TIME ZONE :clinicTimeZone', 'dateTime')
         .addSelect('r.estado', 'state')
         .addSelect('r.valor_consulta', 'consultationFee')
         .leftJoin('r.paciente', 'p')
@@ -253,6 +322,15 @@ export class ReservationsService {
     }
   }
 
+  /**
+   * Devuelve la agenda de un médico para una fecha: sus reservas del día con
+   * los datos del paciente.
+   *
+   * @param doctorUserId Id de usuario del médico (`usuarios.id`, el `sub` del token).
+   * @param date Fecha `YYYY-MM-DD`.
+   * @returns Turnos del día ordenados por hora; vacío si no hay o el usuario no tiene ficha de médico.
+   * @throws InternalServerErrorException si falla la consulta.
+   */
   async findAgendaByDate(
     doctorUserId: number,
     date: string,
@@ -261,10 +339,7 @@ export class ReservationsService {
       const reservations = await this.reservationsRepository
         .createQueryBuilder('r')
         .select('r.id', 'id')
-        .addSelect(
-          'r.fecha_hora AT TIME ZONE :clinicTimeZone',
-          'dateTime',
-        )
+        .addSelect('r.fecha_hora AT TIME ZONE :clinicTimeZone', 'dateTime')
         .addSelect('r.estado', 'state')
         .addSelect('r.id_paciente', 'patientId')
         .addSelect('p.documento', 'patientDocument')
@@ -299,6 +374,18 @@ export class ReservationsService {
     }
   }
 
+  /**
+   * Calcula los turnos libres de un médico para una fecha.
+   *
+   * Parte de {@link APPOINTMENT_HOURS}, quita las horas con reservas no
+   * canceladas y, si la fecha es hoy, las horas ya iniciadas.
+   *
+   * @param query Médico y fecha.
+   * @returns Inicios de turno libres en formato `YYYY-MM-DDTHH:00:00-03:00`.
+   * @throws BadRequestException si la fecha está fuera del rango de hoy a 30 días.
+   * @throws NotFoundException si el médico no está activo.
+   * @throws InternalServerErrorException si falla la consulta o la validación.
+   */
   async findAvailability(
     query: FindAvailabilityQueryDto,
   ): Promise<AvailabilitySlotDto[]> {
@@ -353,6 +440,24 @@ export class ReservationsService {
     }
   }
 
+  /**
+   * Cambia el estado de una reserva dentro de una transacción con bloqueo
+   * pesimista sobre la fila.
+   *
+   * Orden de validaciones: id válido → existencia → pertenencia (paciente o
+   * médico) → idempotencia (mismo estado: éxito sin escritura) → transición
+   * permitida → plazo (según el reloj de la base de datos) → escritura.
+   *
+   * @param id Identificador de la reserva.
+   * @param actor Usuario autenticado.
+   * @param target Estado destino.
+   * @returns La reserva con el nuevo estado.
+   * @throws BadRequestException si el id es inválido o el plazo venció.
+   * @throws NotFoundException si la reserva no existe.
+   * @throws ForbiddenException si la reserva no pertenece al usuario.
+   * @throws ConflictException si la transición no está permitida.
+   * @throws InternalServerErrorException si la escritura no afecta exactamente una fila.
+   */
   private async changeState(
     id: number,
     actor: ReservationActor,
@@ -455,6 +560,12 @@ export class ReservationsService {
     });
   }
 
+  /**
+   * Convierte una fila cruda de la agenda en {@link OutputAgendaItemDto} y la valida.
+   *
+   * @param reservation Fila con la forma del DTO de agenda.
+   * @returns DTO validado.
+   */
   private async toAgendaItemAdapter(
     reservation: OutputAgendaItemDto,
   ): Promise<OutputAgendaItemDto> {
@@ -474,6 +585,17 @@ export class ReservationsService {
     return item;
   }
 
+  /**
+   * Verifica el plazo de cancelación según el rol.
+   *
+   * - Paciente: sólo hasta el día calendario anterior al turno (hora de la clínica).
+   * - Administrador: hasta el instante de inicio del turno.
+   *
+   * @param start Inicio del turno.
+   * @param now Instante actual según la base de datos.
+   * @param role Rol que cancela.
+   * @throws BadRequestException si el plazo venció.
+   */
   private assertCancellationTime(
     start: Date,
     now: Date,
@@ -492,6 +614,13 @@ export class ReservationsService {
     }
   }
 
+  /**
+   * Verifica que el turno ya haya comenzado para registrar atención o ausencia.
+   *
+   * @param start Inicio del turno.
+   * @param now Instante actual según la base de datos.
+   * @throws BadRequestException si el turno aún no comenzó.
+   */
   private assertAttendanceTime(start: Date, now: Date): void {
     if (now.getTime() < start.getTime()) {
       throw new BadRequestException(
@@ -500,6 +629,12 @@ export class ReservationsService {
     }
   }
 
+  /**
+   * Devuelve la fecha de calendario (`YYYY-MM-DD`) de un instante en la zona
+   * horaria de la clínica.
+   *
+   * @param date Instante a convertir.
+   */
   private calendarDate(date: Date): string {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: CLINIC_TIME_ZONE,
@@ -509,6 +644,10 @@ export class ReservationsService {
     }).format(date);
   }
 
+  /**
+   * Obtiene la fecha (`YYYY-MM-DD`) y la hora (0-23) actuales en la zona
+   * horaria de la clínica.
+   */
   private getClinicClock(): { date: string; hour: number } {
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: CLINIC_TIME_ZONE,
@@ -527,6 +666,13 @@ export class ReservationsService {
     };
   }
 
+  /**
+   * Suma días de calendario a una fecha `YYYY-MM-DD` sin efectos de zona horaria.
+   *
+   * @param date Fecha base.
+   * @param days Días a sumar (puede ser negativo).
+   * @returns La fecha resultante en formato `YYYY-MM-DD`.
+   */
   private addCalendarDays(date: string, days: number): string {
     const calendar = new Date(`${date}T00:00:00Z`);
     calendar.setUTCDate(calendar.getUTCDate() + days);

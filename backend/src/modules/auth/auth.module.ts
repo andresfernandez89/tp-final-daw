@@ -9,6 +9,14 @@ import { AuthGuard } from './guards/auth.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
 import { AuthService } from './services/auth.service.js';
 
+/**
+ * Módulo de autenticación y autorización.
+ *
+ * Expone el endpoint de inicio de sesión y provee los guards {@link AuthGuard}
+ * (valida el JWT) y {@link RolesGuard} (valida el rol) que el resto de los
+ * módulos importan para proteger sus endpoints. También exporta `JwtModule`,
+ * configurado con el secreto `JWT_SECRET` y una expiración de 8 horas.
+ */
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),

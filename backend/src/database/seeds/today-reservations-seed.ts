@@ -1,30 +1,31 @@
 import type { QueryRunner } from 'typeorm';
 import dataSource from '../data-source.js';
 
-/**
- * Seed rápida para probar la tabla del médico (marcar ATENDIDO / AUSENTE).
- * Inserta turnos de HOY alrededor de la hora actual (hora de la clínica).
- * No trunca nada: sólo borra los turnos de HOY de los médicos involucrados
- * y los vuelve a crear, así se puede correr las veces que haga falta.
- *
- * Uso: npm run db:seed:today
- */
-
+/** Zona horaria de la clínica; los turnos se generan relativos a la hora actual en ella. */
 const CLINIC_TIME_ZONE = 'America/Argentina/Buenos_Aires';
+/** Nombre del advisory lock que evita ejecutar la seed en paralelo. */
 const SEED_LOCK_NAME = 'tp-final-daw:today-reservations-seed';
 
+/** Turno de prueba para el día de hoy, relativo a la hora actual. */
 type TodayReservation = {
+  /** Documento del médico (usuario con rol `MEDICO`). */
   documentoMedico: string;
+  /** Documento del paciente (usuario con rol `PACIENTE`). */
   documentoPaciente: string;
   /** Minutos respecto a la hora actual (negativo = ya empezó). */
   minutosDesdeAhora: number;
+  /** Estado inicial del turno. */
   estado: 'ACTIVO' | 'ATENDIDO' | 'AUSENTE' | 'CANCELADO';
+  /** Descripción del caso que cubre, impresa al insertar. */
   nota: string;
 };
 
+/** Documento del primer médico de demostración. */
 const MEDICO_1 = '20000001';
+/** Documento del segundo médico de demostración. */
 const MEDICO_2 = '20000002';
 
+/** Casos de prueba: turnos ya iniciados, en curso y futuros, en distintos estados y de dos médicos. */
 const seedToday: TodayReservation[] = [
   // --- Médico 1: casos a probar ---
   {
@@ -129,6 +130,18 @@ const seedToday: TodayReservation[] = [
   },
 ];
 
+/**
+ * Seed rápida para probar la agenda del médico (marcar ATENDIDO / AUSENTE).
+ *
+ * Inserta turnos de HOY alrededor de la hora actual (hora de la clínica).
+ * No trunca nada: sólo borra los turnos de HOY de los médicos involucrados y
+ * los vuelve a crear, así se puede correr las veces que haga falta. Se niega
+ * a correr con `NODE_ENV=production`.
+ *
+ * Uso: `npm run db:seed:today`.
+ *
+ * @throws Error si el entorno es producción o no se pudo insertar un turno.
+ */
 async function runTodaySeed(): Promise<void> {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('No se puede correr esta seed en prod.');

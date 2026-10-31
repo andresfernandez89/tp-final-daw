@@ -8,14 +8,29 @@
     <form [formGroup]="form" (ngSubmit)="iniciarSesion()" [attr.aria-busy]="busy()">
       <div class="field">
         <label for="documento">Documento</label>
-        <input pInputText id="documento" name="documento" type="text" inputmode="numeric"
-          formControlName="documento" autocomplete="username" required />
+        <input
+          pInputText
+          id="documento"
+          name="documento"
+          type="text"
+          inputmode="numeric"
+          formControlName="documento"
+          autocomplete="username"
+          required
+        />
       </div>
 
       <div class="field">
         <label for="clave">Contraseña</label>
-        <input pInputText id="clave" name="clave" type="password"
-          formControlName="clave" autocomplete="current-password" required />
+        <input
+          pInputText
+          id="clave"
+          name="clave"
+          type="password"
+          formControlName="clave"
+          autocomplete="current-password"
+          required
+        />
       </div>
 
       @if (error()) {

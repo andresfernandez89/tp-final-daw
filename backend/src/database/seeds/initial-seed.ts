@@ -2,9 +2,17 @@ import bcrypt from 'bcrypt';
 import type { QueryRunner } from 'typeorm';
 import dataSource from '../data-source.js';
 
+/** Costo de bcrypt para las claves de los usuarios de demostración. */
 const BCRYPT_ROUNDS = 12;
+/** Nombre del advisory lock que evita ejecutar la seed en paralelo. */
 const SEED_LOCK_NAME = 'tp-final-daw:initial-seed';
 
+/**
+ * Usuarios de demostración. Documentos: `1000000x` administradores,
+ * `2000000x` médicos y `3000000x` pacientes. Todos comparten la clave
+ * `SEED_DEFAULT_PASSWORD`. Incluye usuarios en estado `BAJA` para probar las
+ * restricciones de acceso.
+ */
 const seedUsers = [
   {
     documento: '10000001',
@@ -112,6 +120,7 @@ const seedUsers = [
   },
 ] as const;
 
+/** Fichas de los médicos de demostración (matrícula y valor de consulta), por documento. */
 const seedDoctors = [
   {
     documento: '20000001',
@@ -135,6 +144,11 @@ const seedDoctors = [
   },
 ] as const;
 
+/**
+ * Reservas de demostración, expresadas en días relativos a hoy (`diasDesdeHoy`)
+ * y hora de inicio, para cubrir turnos pasados, de hoy y futuros en distintos
+ * estados.
+ */
 const seedReservations = [
   {
     documentoMedico: '20000001',
@@ -208,6 +222,7 @@ const seedReservations = [
   },
 ] as const;
 
+/** Totales que la seed informa al terminar. */
 type SeedCounts = {
   total: number;
   administradores: number;
@@ -221,6 +236,7 @@ type SeedCounts = {
   medicos_vinculados: number;
 };
 
+/** Totales de reservas vinculadas, por médico, que la seed informa al terminar. */
 type ReservationSeedCounts = {
   total: number;
   activas: number;
@@ -230,6 +246,19 @@ type ReservationSeedCounts = {
   reservas_vinculadas: number;
 };
 
+/**
+ * Reinicia y carga los datos de demostración.
+ *
+ * Dentro de una transacción con advisory lock: trunca `reservas`, `medicos` y
+ * `usuarios` (reiniciando identidades), inserta usuarios con claves hasheadas,
+ * fichas de médicos y reservas, e imprime un resumen por estado.
+ *
+ * Requiere `SEED_DEFAULT_PASSWORD` y se niega a correr con `NODE_ENV=production`.
+ *
+ * Uso: `npm run db:seed`.
+ *
+ * @throws Error si falta la clave por defecto o el entorno es producción.
+ */
 async function runInitialSeed(): Promise<void> {
   const password = process.env.SEED_DEFAULT_PASSWORD?.trim();
 

@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsInt, IsNotEmpty, IsString } from 'class-validator';
 
+/** Paciente tal como lo devuelve la API (proyección de un usuario con rol `PACIENTE`). */
 export class PatientDto {
+  /** Identificador del paciente; coincide con `usuarios.id`. */
   @ApiProperty({
     description: 'Identificador del paciente en la tabla usuarios.',
     type: 'integer',
@@ -10,6 +12,7 @@ export class PatientDto {
   @IsInt()
   id: number;
 
+  /** Documento del paciente. */
   @ApiProperty({
     description: 'Documento del paciente.',
     example: '30000001',
@@ -19,6 +22,7 @@ export class PatientDto {
   @IsNotEmpty()
   document: string;
 
+  /** Nombres del paciente. */
   @ApiProperty({
     description: 'Nombres del paciente.',
     example: 'Uno',
@@ -28,6 +32,7 @@ export class PatientDto {
   @IsNotEmpty()
   firstName: string;
 
+  /** Apellidos del paciente. */
   @ApiProperty({
     description: 'Apellidos del paciente.',
     example: 'Paciente',

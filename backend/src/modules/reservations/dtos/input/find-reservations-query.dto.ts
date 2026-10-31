@@ -8,9 +8,12 @@ import {
 } from 'class-validator';
 import { ReservationState } from '../../enums/reservation-state.enum.js';
 
+/** Parámetros de consulta de `GET /reservations/admin`. Ambos filtros son opcionales y se combinan. */
 export class FindReservationsQueryDto {
+  /** Estado exacto por el que filtrar. Si se omite, se incluyen todos los estados. */
   @ApiPropertyOptional({
     enum: ReservationState,
+    enumName: 'ReservationState',
     description:
       'Estado exacto por el que se filtran las reservas. Valores permitidos: ' +
       'ACTIVO, ATENDIDO, AUSENTE o CANCELADO. Si se omite, se listan las reservas ' +
@@ -21,6 +24,7 @@ export class FindReservationsQueryDto {
   @IsEnum(ReservationState)
   state?: ReservationState;
 
+  /** Documento exacto del paciente (se recortan espacios). Si se omite, se incluyen todos los pacientes. */
   @ApiPropertyOptional({
     description:
       'Documento del paciente para una búsqueda exacta. Se ignoran los espacios ' +

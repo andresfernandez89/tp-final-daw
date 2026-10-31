@@ -12,13 +12,32 @@ import { UserState } from '../../auth/enums/user-state.enum.js';
 import { DoctorListItemDto } from '../dtos/output/doctor-list-item.dto.js';
 import { Doctor } from '../entities/doctor.entity.js';
 
+/**
+ * Servicio de médicos.
+ *
+ * Un médico se considera "activo" cuando su usuario asociado tiene estado
+ * `ACTIVO` y rol `MEDICO`.
+ */
 @Injectable()
 export class DoctorsService {
+  /**
+   * Inyecta el repositorio de médicos.
+   *
+   * @param doctorsRepository Repositorio de la entidad {@link Doctor}.
+   */
   constructor(
     @InjectRepository(Doctor)
     private readonly doctorsRepository: Repository<Doctor>,
   ) {}
 
+  /**
+   * Busca un médico activo por id. Lo usa el módulo de reservas para validar
+   * el médico antes de consultar disponibilidad.
+   *
+   * @param id Identificador del médico (`medicos.id`).
+   * @returns Objeto con el id del médico.
+   * @throws NotFoundException si no existe o su usuario no está activo con rol `MEDICO`.
+   */
   async findActiveById(id: number): Promise<Pick<Doctor, 'id'>> {
     const doctor = await this.doctorsRepository.findOne({
       select: { id: true },
@@ -33,6 +52,12 @@ export class DoctorsService {
     return doctor;
   }
 
+  /**
+   * Lista los médicos activos ordenados por id ascendente.
+   *
+   * @returns Médicos con nombre, apellido, matrícula y valor de consulta.
+   * @throws InternalServerErrorException si falla la consulta.
+   */
   async findAll(): Promise<DoctorListItemDto[]> {
     try {
       const doctors = await this.doctorsRepository.find({
@@ -65,7 +90,23 @@ export class DoctorsService {
     }
   }
 
-  async updateValorConsulta(id: number, valorConsulta: number): Promise<DoctorListItemDto> {
+  /**
+   * Actualiza el valor de consulta de un médico.
+   *
+   * Construye y valida la respuesta antes de escribir, de modo que una
+   * salida inválida no deje un cambio persistido. Las reservas existentes no
+   * se modifican: conservan el valor copiado al crearlas.
+   *
+   * @param id Identificador del médico.
+   * @param valorConsulta Nuevo valor de consulta (entero positivo).
+   * @returns El médico con el valor actualizado.
+   * @throws NotFoundException si el médico no existe.
+   * @throws InternalServerErrorException si falla la validación o la escritura.
+   */
+  async updateValorConsulta(
+    id: number,
+    valorConsulta: number,
+  ): Promise<DoctorListItemDto> {
     try {
       const doctor = await this.doctorsRepository.findOne({
         where: { id },

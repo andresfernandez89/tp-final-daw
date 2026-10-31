@@ -1,0 +1,10 @@
+[
+  {
+    "title": "Pantallas, rutas y roles",
+    "file": "pantallas-y-roles.md"
+  },
+  {
+    "title": "Sesión y comunicación con la API",
+    "file": "sesion-y-api.md"
+  }
+]
