@@ -22,6 +22,7 @@
     "frontend:ng": "npm --prefix frontend run ng",
     "frontend:start": "npm --prefix frontend run start",
     "frontend:build": "npm --prefix frontend run build",
+    "frontend:deploy": "npm --prefix frontend run deploy",
     "frontend:watch": "npm --prefix frontend run watch",
     "frontend:test": "npm --prefix frontend run test",
     "frontend:docs": "npm --prefix frontend run docs:build",
