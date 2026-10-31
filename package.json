@@ -15,11 +15,17 @@
     "backend:db:rollback": "npm --prefix backend run db:rollback",
     "backend:db:status": "npm --prefix backend run db:status",
     "backend:db:seed": "npm --prefix backend run db:seed",
+    "backend:docs": "npm --prefix backend run docs:build",
+    "backend:docs:serve": "npm --prefix backend run docs:serve",
+    "backend:docs:openapi": "npm --prefix backend run docs:openapi",
     "frontend:install": "npm --prefix frontend ci",
     "frontend:ng": "npm --prefix frontend run ng",
     "frontend:start": "npm --prefix frontend run start",
     "frontend:build": "npm --prefix frontend run build",
     "frontend:watch": "npm --prefix frontend run watch",
-    "frontend:test": "npm --prefix frontend run test"
+    "frontend:test": "npm --prefix frontend run test",
+    "frontend:docs": "npm --prefix frontend run docs:build",
+    "frontend:docs:serve": "npm --prefix frontend run docs:serve",
+    "docs": "npm run backend:docs && npm run frontend:docs"
   }
 }
