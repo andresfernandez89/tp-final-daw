@@ -23,6 +23,7 @@
     "frontend:start": "npm --prefix frontend run start",
     "frontend:build": "npm --prefix frontend run build",
     "frontend:deploy": "npm --prefix frontend run deploy",
+    "frontend:deploy:unix": "npm --prefix frontend run deploy:unix",
     "frontend:watch": "npm --prefix frontend run watch",
     "frontend:test": "npm --prefix frontend run test",
     "frontend:docs": "npm --prefix frontend run docs:build",

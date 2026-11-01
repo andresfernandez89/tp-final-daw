@@ -9,6 +9,8 @@
     "deploy": "npm install && npm run build && npm run nginx:limpiar && npm run nginx:llenar",
     "nginx:limpiar": "del /F /Q C:\\nginx-1.30.6\\html\\* && for /d %x in (C:\\nginx-1.30.6\\html\\*) do rmdir /S /Q \"%x\"",
     "nginx:llenar": "xcopy /E /I dist\\frontend\\browser\\* C:\\nginx-1.30.6\\html\\",
+    "deploy:unix": "npm install && npm run build && npm run nginx:publicar:unix",
+    "nginx:publicar:unix": "test -f dist/frontend/browser/index.html && test -d \"${NGINX_HTML:-/usr/share/nginx/html}\" && rm -rf \"${NGINX_HTML:-/usr/share/nginx/html}\"/* && cp -r dist/frontend/browser/. \"${NGINX_HTML:-/usr/share/nginx/html}\"/",
     "test": "ng test",
     "docs:build": "compodoc",
     "docs:serve": "compodoc -s -w -r 8081",
